@@ -1,4 +1,4 @@
-﻿const API_URL = (import.meta && import.meta.env && import.meta.env.VITE_API_URL) || 'http://localhost:4000';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
 
 const request = async (path: string, options: RequestInit = {}) => {
   const res = await fetch(`${API_URL}${path}`, {
@@ -39,6 +39,7 @@ export const api = {
 
   getTeams: () => request('/teams'),
   createTeam: (data: any) => request('/teams', { method: 'POST', body: JSON.stringify(data) }),
+  updateTeam: (id: string, data: any) => request(`/teams/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   deleteTeam: (id: string) => request(`/teams/${id}`, { method: 'DELETE' }),
 
   getMembers: () => request('/members'),

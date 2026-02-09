@@ -97,7 +97,7 @@ const Members: React.FC = () => {
     maritalStatus: 'Casado(a)', spouseName: '', spouseCpf: '', marriageDate: '',
     mfcDate: new Date().toISOString().split('T')[0], phone: '', emergencyPhone: '',
     street: '', number: '', neighborhood: '', zip: '', complement: '', city: 'Tatui',
-    state: 'SP', condir: 'Sudeste', naturalness: '', father: '', mother: '',
+    state: 'SP', condir: 'Sudeste', naturalness: '', father: '', mother: '', photoUrl: '',
     smoker: false, mobilityIssue: '', healthPlan: '', diet: '', medication: '',
     allergy: '', pcd: false, pcdDescription: '', profession: '', religion: 'Catolica',
     education: 'Superior completo', createAccess: false, email: '', username: '',
@@ -107,6 +107,11 @@ const Members: React.FC = () => {
   const [formData, setFormData] = useState(initialFormState);
   const [members, setMembers] = useState<Member[]>([]);
   const [cities, setCities] = useState<City[]>([]);
+  const [estados, setEstados] = useState<Array<{id: number, sigla: string, nome: string}>>([]);
+  const [cidadesPorEstado, setCidadesPorEstado] = useState<Array<{id: number, nome: string}>>([]);
+  const [activeTab, setActiveTab] = useState<'pessoal' | 'familia' | 'contato' | 'endereco' | 'saude'>('pessoal');
+  const [estadoBusca, setEstadoBusca] = useState('');
+  const [cidadeBusca, setCidadeBusca] = useState('');
 
   const loadData = () => {
     api.getMembers()
@@ -130,6 +135,20 @@ const Members: React.FC = () => {
       clearInterval(interval);
     };
   }, []);
+
+  useEffect(() => {
+    api.getEstados()
+      .then(setEstados)
+      .catch(() => setEstados([]));
+  }, []);
+
+  useEffect(() => {
+    if (formData.state && formData.state.length === 2) {
+      api.getCidadesPorEstado(formData.state)
+        .then(setCidadesPorEstado)
+        .catch(() => setCidadesPorEstado([]));
+    }
+  }, [formData.state]);
 
   useEffect(() => {
     if (cities.length > 0) {
@@ -250,6 +269,7 @@ const Members: React.FC = () => {
       profession: formData.profession,
       religion: formData.religion,
       education: formData.education,
+      photoUrl: formData.photoUrl,
       movementRoles: [],
       updatedAt: new Date().toISOString()
     };
@@ -378,17 +398,52 @@ const Members: React.FC = () => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
+  const handleCepChange = async (e: any) => {
+    const maskedValue = maskCEP(e.target.value);
+    updateFormData('zip', maskedValue);
+    
+    const cepNumeros = unmask(maskedValue);
+    if (cepNumeros.length === 8) {
+      const buscarEnderecoPromise = api.buscarCEP(cepNumeros).then(data => {
+        if (data.erro) {
+          throw new Error('CEP não encontrado');
+        }
+        setFormData(prev => ({
+          ...prev,
+          street: data.logradouro || prev.street,
+          neighborhood: data.bairro || prev.neighborhood,
+          city: data.localidade || prev.city,
+          state: data.uf || prev.state,
+        }));
+        return data;
+      });
+
+      toast.promise(buscarEnderecoPromise, {
+        loading: 'Buscando endereço...',
+        success: 'Endereço encontrado! 📍',
+        error: 'CEP não encontrado',
+      });
+    }
+  };
+
   return (
     <div className="space-y-6 sm:space-y-10 animate-in fade-in duration-700 pb-12 sm:pb-20">
       {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
-        <div>
-          <h2 className="text-2xl sm:text-4xl font-black text-gray-900 tracking-tight">Comunidade MFC</h2>
-          <p className="text-sm sm:text-base text-gray-500 font-medium mt-1">Gestão demográfica e administrativa de MFCistas.</p>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between sm:gap-6 bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
+        <div className="flex items-center gap-4">
+          <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg flex-shrink-0 p-[3px]">
+            <div className="w-full h-full bg-white rounded-lg flex items-center justify-center">
+              <img src="/imgs/mfc_logo01.png" alt="MFC" className="w-8 h-8 object-contain" />
+            </div>
+          </div>
+          <div>
+            <h2 className="text-2xl sm:text-4xl font-black text-gray-900 tracking-tight leading-none">Comunidade MFC</h2>
+            <p className="text-sm sm:text-base text-gray-500 font-semibold mt-1">Gestão demográfica e administrativa de MFCistas</p>
+          </div>
         </div>
         <button 
           onClick={() => setShowModal(true)}
-          className="w-full sm:w-auto bg-blue-600 text-white px-6 py-3 sm:px-8 sm:py-4 rounded-xl sm:rounded-2xl font-black text-sm uppercase tracking-widest flex items-center justify-center gap-3 hover:bg-blue-700 transition-all shadow-lg sm:shadow-2xl shadow-blue-100 active:scale-95 group"
+          className="w-full sm:w-auto bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-3 sm:px-8 sm:py-4 rounded-2xl font-black text-sm uppercase tracking-widest flex items-center justify-center gap-3 hover:shadow-xl transition-all shadow-lg active:scale-95 group flex-shrink-0"
         >
           <Plus className="w-5 h-5 group-hover:rotate-90 transition-transform duration-300" />
           <span>Novo MFCista</span>
@@ -471,6 +526,90 @@ const Members: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Widget de Aniversariantes do Mês */}
+      {(() => {
+        const today = new Date();
+        const currentMonth = today.getMonth() + 1;
+        const birthdayMembers = filteredMembers.filter(m => {
+          if (!m.dob) return false;
+          const dobDate = new Date(m.dob);
+          return dobDate.getMonth() + 1 === currentMonth;
+        }).sort((a, b) => {
+          const dayA = new Date(a.dob).getDate();
+          const dayB = new Date(b.dob).getDate();
+          return dayA - dayB;
+        });
+
+        if (birthdayMembers.length === 0) return null;
+
+        return (
+          <div className="bg-gradient-to-br from-pink-50 via-purple-50 to-blue-50 rounded-3xl border border-pink-100 shadow-lg overflow-hidden">
+            <div className="p-6 border-b border-pink-100 bg-white/50 backdrop-blur-sm">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 bg-gradient-to-br from-pink-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg">
+                  <span className="text-2xl">🎂</span>
+                </div>
+                <div>
+                  <h3 className="text-xl font-black text-gray-900">Aniversariantes de {['', 'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'][currentMonth]}</h3>
+                  <p className="text-sm text-gray-600 font-semibold">{birthdayMembers.length} {birthdayMembers.length === 1 ? 'aniversariante' : 'aniversariantes'} este mês</p>
+                </div>
+              </div>
+            </div>
+            <div className="p-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {birthdayMembers.map(member => {
+                  const dobDate = new Date(member.dob);
+                  const day = dobDate.getDate();
+                  const age = calculateYears(member.dob);
+                  const isPast = day < today.getDate();
+                  const isToday = day === today.getDate();
+                  
+                  return (
+                    <div
+                      key={member.id}
+                      onClick={() => navigate(`/mfcistas/${member.id}`)}
+                      className={`bg-white rounded-2xl p-4 border-2 transition-all cursor-pointer hover:scale-105 hover:shadow-xl ${
+                        isToday 
+                          ? 'border-pink-400 shadow-lg shadow-pink-100 animate-pulse' 
+                          : isPast 
+                            ? 'border-gray-200 opacity-60' 
+                            : 'border-purple-200 hover:border-purple-400'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className={`w-14 h-14 rounded-xl flex items-center justify-center font-black text-lg shadow-lg ${
+                          member.gender === 'Masculino' 
+                            ? 'bg-gradient-to-br from-blue-400 to-blue-600 text-white' 
+                            : 'bg-gradient-to-br from-pink-400 to-pink-600 text-white'
+                        }`}>
+                          {member.name.substring(0, 2)}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-black text-gray-900 truncate text-sm">{member.name}</p>
+                          <div className="flex items-center gap-2 mt-1">
+                            <span className={`text-xs font-bold px-2 py-0.5 rounded-lg ${
+                              isToday 
+                                ? 'bg-pink-100 text-pink-700' 
+                                : 'bg-purple-100 text-purple-700'
+                            }`}>
+                              {day}/{currentMonth}
+                            </span>
+                            <span className="text-xs text-gray-500 font-semibold">
+                              {age} anos
+                            </span>
+                          </div>
+                        </div>
+                        {isToday && <span className="text-2xl animate-bounce">🎉</span>}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Painel de Filtros Avançados */}
       <div className="bg-white rounded-[2.5rem] border border-gray-100 shadow-sm overflow-hidden transition-all duration-500">
@@ -730,94 +869,280 @@ const Members: React.FC = () => {
         </div>
       </div>
 
-      {/* Modal Novo Membro (Existente) */}
+      {/* Modal Novo Membro com Abas */}
       {showModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 bg-slate-900/70 backdrop-blur-sm overflow-hidden">
-          <div className="bg-white w-full max-w-4xl max-h-[90vh] sm:rounded-[2.5rem] shadow-2xl flex flex-col animate-in slide-in-from-bottom-5 duration-400 overflow-hidden border border-gray-100">
-            <div className="px-8 py-5 border-b border-gray-50 flex items-center justify-between bg-white z-20">
+          <div className="bg-white w-full max-w-5xl max-h-[90vh] sm:rounded-[2.5rem] shadow-2xl flex flex-col animate-in slide-in-from-bottom-5 duration-400 overflow-hidden border border-gray-100">
+            {/* Header */}
+            <div className="px-8 py-5 border-b border-gray-50 flex items-center justify-between bg-gradient-to-r from-blue-50 to-white z-20">
               <div className="flex items-center gap-4">
-                <div className="w-11 h-11 bg-blue-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-blue-50"><UserPlus className="w-5 h-5" /></div>
+                <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center shadow-lg border border-blue-100">
+                  <img src="/imgs/mfc_logo01.png" alt="MFC" className="w-10 h-10 object-contain" />
+                </div>
                 <div>
-                  <h3 className="text-xl font-black text-gray-900 tracking-tight leading-none mb-1">
+                  <h3 className="text-2xl font-black text-gray-900 tracking-tight leading-none mb-1">
                     {editingMemberId ? 'Editar MFCista' : 'Novo MFCista'}
                   </h3>
                   <div className="flex items-center gap-2"><MapPin className="w-3 h-3 text-blue-500" /><p className="text-[9px] text-gray-400 font-black uppercase tracking-[0.2em]">Unidade: <span className="text-blue-600">{formData.city} - {formData.state}</span></p></div>
                 </div>
               </div>
-              <button onClick={() => { setShowModal(false); setEditingMemberId(null); setFormData(initialFormState); }} className="p-2 hover:bg-gray-50 rounded-xl transition-all text-gray-300 hover:text-gray-500 active:scale-90"><X className="w-5 h-5" /></button>
+              <button onClick={() => { setShowModal(false); setEditingMemberId(null); setFormData(initialFormState); setActiveTab('pessoal'); }} className="p-2 hover:bg-white rounded-xl transition-all text-gray-300 hover:text-gray-500 active:scale-90"><X className="w-5 h-5" /></button>
             </div>
-            <div className="flex-1 overflow-y-auto p-6 sm:p-8 space-y-8 no-scrollbar">
-              <div className="space-y-4">
-                <div className="flex items-center gap-2 mb-2"><div className="w-1 h-4 bg-blue-600 rounded-full"></div><h4 className="font-black text-gray-900 uppercase tracking-widest text-[10px]">Dados Pessoais</h4></div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <InputField label="Nome Completo" field="name" className="sm:col-span-2" value={formData.name} onChange={(e: any) => updateFormData('name', e.target.value)} />
-                  <InputField label="Apelido / Cracha" field="nickname" value={formData.nickname} onChange={(e: any) => updateFormData('nickname', e.target.value)} />
-                  <InputField label="Data de Nascimento" field="dob" type="date" value={formData.dob} onChange={(e: any) => updateFormData('dob', e.target.value)} />
-                  <InputField label="RG" field="rg" value={formData.rg} onChange={(e: any) => updateFormData('rg', e.target.value)} mask={maskRG} />
-                  <InputField label="CPF" field="cpf" value={formData.cpf} onChange={(e: any) => updateFormData('cpf', e.target.value)} mask={maskCPF} />
-                  <SelectField label="Sexo" field="gender" options={['Feminino', 'Masculino', 'Outro']} value={formData.gender} onChange={(e: any) => updateFormData('gender', e.target.value)} />
-                  <SelectField label="Tipo Sanguineo" field="bloodType" options={['O+', 'O-', 'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-']} value={formData.bloodType} onChange={(e: any) => updateFormData('bloodType', e.target.value)} />
-                  <InputField label="MFCista Desde" field="mfcDate" type="date" value={formData.mfcDate} onChange={(e: any) => updateFormData('mfcDate', e.target.value)} />
-                  <SelectField label="Status" field="status" options={[MemberStatus.AGUARDANDO, MemberStatus.ATIVO, MemberStatus.INATIVO, MemberStatus.PENDENTE, MemberStatus.CONVIDADO]} value={formData.status} onChange={(e: any) => updateFormData('status', e.target.value)} />
-                </div>
-              </div>
 
-              <div className="space-y-4">
-                <div className="flex items-center gap-2 mb-2"><div className="w-1 h-4 bg-rose-500 rounded-full"></div><h4 className="font-black text-gray-900 uppercase tracking-widest text-[10px]">Familia e Historico</h4></div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <SelectField label="Estado Civil" field="maritalStatus" options={['Casado(a)', 'Solteiro(a)', 'Divorciado(a)', 'Viuvo(a)']} className="sm:col-span-2" value={formData.maritalStatus} onChange={(e: any) => updateFormData('maritalStatus', e.target.value)} />
-                  <InputField label="Conjuge" field="spouseName" className="sm:col-span-2" value={formData.spouseName} onChange={(e: any) => updateFormData('spouseName', e.target.value)} />
-                  <InputField label="CPF do Conjuge" field="spouseCpf" value={formData.spouseCpf} onChange={(e: any) => updateFormData('spouseCpf', e.target.value)} mask={maskCPF} />
-                  <InputField label="Data Casamento" field="marriageDate" type="date" value={formData.marriageDate} onChange={(e: any) => updateFormData('marriageDate', e.target.value)} />
-                  <InputField label="Nome do Pai" field="father" value={formData.father} onChange={(e: any) => updateFormData('father', e.target.value)} />
-                  <InputField label="Nome da Mae" field="mother" value={formData.mother} onChange={(e: any) => updateFormData('mother', e.target.value)} />
-                  <InputField label="Naturalidade" field="naturalness" value={formData.naturalness} onChange={(e: any) => updateFormData('naturalness', e.target.value)} />
-                  <SelectField label="Condir" field="condir" options={['Norte', 'Nordeste', 'Centro-Oeste', 'Sudeste', 'Sul']} value={formData.condir} onChange={(e: any) => updateFormData('condir', e.target.value)} />
-                  <InputField label="Profissao" field="profession" value={formData.profession} onChange={(e: any) => updateFormData('profession', e.target.value)} />
-                  <InputField label="Religiao" field="religion" value={formData.religion} onChange={(e: any) => updateFormData('religion', e.target.value)} />
-                  <InputField label="Escolaridade" field="education" className="sm:col-span-2" value={formData.education} onChange={(e: any) => updateFormData('education', e.target.value)} />
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <div className="flex items-center gap-2 mb-2"><div className="w-1 h-4 bg-amber-500 rounded-full"></div><h4 className="font-black text-gray-900 uppercase tracking-widest text-[10px]">Contato</h4></div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <InputField label="Telefone" field="phone" value={formData.phone} onChange={(e: any) => updateFormData('phone', e.target.value)} mask={maskPhone} />
-                  <InputField label="Telefone de Emergencia" field="emergencyPhone" value={formData.emergencyPhone} onChange={(e: any) => updateFormData('emergencyPhone', e.target.value)} mask={maskPhone} />
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <div className="flex items-center gap-2 mb-2"><div className="w-1 h-4 bg-emerald-500 rounded-full"></div><h4 className="font-black text-gray-900 uppercase tracking-widest text-[10px]">Endereco</h4></div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <InputField label="Logradouro" field="street" className="sm:col-span-2" value={formData.street} onChange={(e: any) => updateFormData('street', e.target.value)} />
-                  <InputField label="Numero" field="number" value={formData.number} onChange={(e: any) => updateFormData('number', e.target.value)} />
-                  <InputField label="Bairro" field="neighborhood" value={formData.neighborhood} onChange={(e: any) => updateFormData('neighborhood', e.target.value)} />
-                  <InputField label="CEP" field="zip" value={formData.zip} onChange={(e: any) => updateFormData('zip', e.target.value)} mask={maskCEP} />
-                  <InputField label="Complemento" field="complement" value={formData.complement} onChange={(e: any) => updateFormData('complement', e.target.value)} />
-                  <SelectField label="Cidade" field="city" options={(cities.length > 0 ? cities.map(c => c.name) : [''])} className="sm:col-span-2" value={formData.city} onChange={(e: any) => updateFormData('city', e.target.value)} />
-                  <InputField label="Estado (UF)" field="state" value={formData.state} onChange={(e: any) => updateFormData('state', e.target.value)} />
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <div className="flex items-center gap-2 mb-2"><div className="w-1 h-4 bg-violet-500 rounded-full"></div><h4 className="font-black text-gray-900 uppercase tracking-widest text-[10px]">Saude e Informacoes Gerais</h4></div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <CheckboxField label="Fumante" field="smoker" checked={formData.smoker} onChange={(e: any) => updateFormData('smoker', e.target.checked)} />
-                  <CheckboxField label="Pessoa com Deficiencia (PCD)" field="pcd" checked={formData.pcd} onChange={(e: any) => updateFormData('pcd', e.target.checked)} />
-                  <InputField label="Dificuldade de Locomocao" field="mobilityIssue" value={formData.mobilityIssue} onChange={(e: any) => updateFormData('mobilityIssue', e.target.value)} />
-                  <InputField label="Plano de Saude" field="healthPlan" value={formData.healthPlan} onChange={(e: any) => updateFormData('healthPlan', e.target.value)} />
-                  <InputField label="Restricao Alimentar" field="diet" value={formData.diet} onChange={(e: any) => updateFormData('diet', e.target.value)} />
-                  <InputField label="Uso de Medicacao" field="medication" value={formData.medication} onChange={(e: any) => updateFormData('medication', e.target.value)} />
-                  <InputField label="Alergia" field="allergy" value={formData.allergy} onChange={(e: any) => updateFormData('allergy', e.target.value)} />
-                  <InputField label="Descricao PCD" field="pcdDescription" className="sm:col-span-2" value={formData.pcdDescription} onChange={(e: any) => updateFormData('pcdDescription', e.target.value)} />
-                </div>
+            {/* Tabs Navigation */}
+            <div className="px-8 pt-4 border-b border-gray-100 bg-white z-10">
+              <div className="flex gap-2 overflow-x-auto no-scrollbar">
+                <button
+                  onClick={() => setActiveTab('pessoal')}
+                  className={`px-5 py-3 rounded-t-xl font-black text-[10px] uppercase tracking-widest transition-all whitespace-nowrap ${
+                    activeTab === 'pessoal' 
+                      ? 'bg-blue-600 text-white shadow-lg' 
+                      : 'bg-gray-50 text-gray-400 hover:bg-gray-100'
+                  }`}
+                >
+                  <UserRound className="w-4 h-4 inline mr-2" />
+                  Dados Pessoais
+                </button>
+                <button
+                  onClick={() => setActiveTab('familia')}
+                  className={`px-5 py-3 rounded-t-xl font-black text-[10px] uppercase tracking-widest transition-all whitespace-nowrap ${
+                    activeTab === 'familia' 
+                      ? 'bg-rose-500 text-white shadow-lg' 
+                      : 'bg-gray-50 text-gray-400 hover:bg-gray-100'
+                  }`}
+                >
+                  <Heart className="w-4 h-4 inline mr-2" />
+                  Família
+                </button>
+                <button
+                  onClick={() => setActiveTab('contato')}
+                  className={`px-5 py-3 rounded-t-xl font-black text-[10px] uppercase tracking-widest transition-all whitespace-nowrap ${
+                    activeTab === 'contato' 
+                      ? 'bg-amber-500 text-white shadow-lg' 
+                      : 'bg-gray-50 text-gray-400 hover:bg-gray-100'
+                  }`}
+                >
+                  📱 Contato
+                </button>
+                <button
+                  onClick={() => setActiveTab('endereco')}
+                  className={`px-5 py-3 rounded-t-xl font-black text-[10px] uppercase tracking-widest transition-all whitespace-nowrap ${
+                    activeTab === 'endereco' 
+                      ? 'bg-emerald-500 text-white shadow-lg' 
+                      : 'bg-gray-50 text-gray-400 hover:bg-gray-100'
+                  }`}
+                >
+                  <MapPin className="w-4 h-4 inline mr-2" />
+                  Endereço
+                </button>
+                <button
+                  onClick={() => setActiveTab('saude')}
+                  className={`px-5 py-3 rounded-t-xl font-black text-[10px] uppercase tracking-widest transition-all whitespace-nowrap ${
+                    activeTab === 'saude' 
+                      ? 'bg-violet-500 text-white shadow-lg' 
+                      : 'bg-gray-50 text-gray-400 hover:bg-gray-100'
+                  }`}
+                >
+                  ❤️‍🩹 Saúde
+                </button>
               </div>
             </div>
-            <div className="px-8 py-5 bg-white border-t border-gray-50 flex flex-col sm:flex-row items-center justify-end gap-3 z-20">
-              <button onClick={() => setShowModal(false)} className="order-3 sm:order-1 px-5 py-2 text-gray-400 font-black text-[9px] uppercase tracking-[0.2em] hover:text-red-500 transition-colors">Cancelar</button>
-              <button onClick={() => handleSave(true)} className="order-2 w-full sm:w-auto bg-gray-50 border border-gray-100 text-gray-500 px-6 py-2.5 rounded-xl font-black text-[9px] uppercase tracking-widest hover:bg-gray-100 transition-all flex items-center justify-center gap-2">Salvar e Criar Outro</button>
-              <button onClick={() => handleSave(false)} className="order-1 w-full sm:w-auto bg-blue-600 text-white px-10 py-2.5 rounded-xl font-black text-[10px] shadow-lg shadow-blue-50 hover:bg-blue-700 transition-all flex items-center justify-center gap-2 active:scale-95 uppercase tracking-widest"><Save className="w-4 h-4" /> Salvar Cadastro</button>
+
+            {/* Tab Content */}
+            <div className="flex-1 overflow-y-auto p-6 sm:p-8 no-scrollbar bg-gradient-to-b from-gray-50/50 to-white">
+              {activeTab === 'pessoal' && (
+                <div className="space-y-4 animate-in fade-in duration-300">
+                  {/* Upload de Foto */}
+                  <div className="bg-gradient-to-br from-blue-50 to-purple-50 rounded-2xl p-6 border border-blue-100">
+                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">
+                      Foto do MFCista
+                    </label>
+                    <div className="flex flex-col sm:flex-row items-center gap-6">
+                      <div className="w-32 h-32 rounded-2xl bg-white border-2 border-dashed border-blue-300 flex items-center justify-center overflow-hidden shadow-lg">
+                        {formData.photoUrl ? (
+                          <img src={formData.photoUrl} alt="Foto" className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="text-center p-4">
+                            <UserRound className="w-12 h-12 text-gray-300 mx-auto mb-2" />
+                            <p className="text-xs text-gray-400 font-bold">Sem foto</p>
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex-1 space-y-3">
+                        <input
+                          type="url"
+                          placeholder="Cole a URL da foto aqui..."
+                          value={formData.photoUrl}
+                          onChange={(e) => updateFormData('photoUrl', e.target.value)}
+                          className="w-full bg-white border-2 border-blue-200 rounded-xl px-4 py-3 text-sm font-semibold text-gray-700 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all outline-none"
+                        />
+                        <p className="text-xs text-gray-500 font-medium">
+                          💡 Dica: Use serviços como Imgur, Google Drive (link público) ou qualquer URL de imagem
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Campos do formulário */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <InputField label="Nome Completo" field="name" className="sm:col-span-2" value={formData.name} onChange={(e: any) => updateFormData('name', e.target.value)} />
+                    <InputField label="Apelido / Cracha" field="nickname" value={formData.nickname} onChange={(e: any) => updateFormData('nickname', e.target.value)} />
+                    <InputField label="Data de Nascimento" field="dob" type="date" value={formData.dob} onChange={(e: any) => updateFormData('dob', e.target.value)} />
+                    <InputField label="RG" field="rg" value={formData.rg} onChange={(e: any) => updateFormData('rg', e.target.value)} mask={maskRG} />
+                    <InputField label="CPF" field="cpf" value={formData.cpf} onChange={(e: any) => updateFormData('cpf', e.target.value)} mask={maskCPF} />
+                    <SelectField label="Sexo" field="gender" options={['Feminino', 'Masculino', 'Outro']} value={formData.gender} onChange={(e: any) => updateFormData('gender', e.target.value)} />
+                    <SelectField label="Tipo Sanguineo" field="bloodType" options={['O+', 'O-', 'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-']} value={formData.bloodType} onChange={(e: any) => updateFormData('bloodType', e.target.value)} />
+                    <InputField label="MFCista Desde" field="mfcDate" type="date" value={formData.mfcDate} onChange={(e: any) => updateFormData('mfcDate', e.target.value)} />
+                    {editingMemberId && (
+                      <SelectField label="Status" field="status" options={[MemberStatus.AGUARDANDO, MemberStatus.ATIVO, MemberStatus.INATIVO, MemberStatus.PENDENTE, MemberStatus.CONVIDADO]} value={formData.status} onChange={(e: any) => updateFormData('status', e.target.value)} />
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {activeTab === 'familia' && (
+                <div className="space-y-4 animate-in fade-in duration-300">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <SelectField label="Estado Civil" field="maritalStatus" options={['Casado(a)', 'Solteiro(a)', 'Divorciado(a)', 'Viuvo(a)']} className="sm:col-span-2" value={formData.maritalStatus} onChange={(e: any) => updateFormData('maritalStatus', e.target.value)} />
+                    <InputField label="Conjuge" field="spouseName" className="sm:col-span-2" value={formData.spouseName} onChange={(e: any) => updateFormData('spouseName', e.target.value)} />
+                    <InputField label="CPF do Conjuge" field="spouseCpf" value={formData.spouseCpf} onChange={(e: any) => updateFormData('spouseCpf', e.target.value)} mask={maskCPF} />
+                    <InputField label="Data Casamento" field="marriageDate" type="date" value={formData.marriageDate} onChange={(e: any) => updateFormData('marriageDate', e.target.value)} />
+                    <InputField label="Nome do Pai" field="father" value={formData.father} onChange={(e: any) => updateFormData('father', e.target.value)} />
+                    <InputField label="Nome da Mae" field="mother" value={formData.mother} onChange={(e: any) => updateFormData('mother', e.target.value)} />
+                    <InputField label="Naturalidade" field="naturalness" value={formData.naturalness} onChange={(e: any) => updateFormData('naturalness', e.target.value)} />
+                    <SelectField label="Condir" field="condir" options={['Norte', 'Nordeste', 'Centro-Oeste', 'Sudeste', 'Sul']} value={formData.condir} onChange={(e: any) => updateFormData('condir', e.target.value)} />
+                    <InputField label="Profissao" field="profession" value={formData.profession} onChange={(e: any) => updateFormData('profession', e.target.value)} />
+                    <InputField label="Religiao" field="religion" value={formData.religion} onChange={(e: any) => updateFormData('religion', e.target.value)} />
+                    <InputField label="Escolaridade" field="education" className="sm:col-span-2" value={formData.education} onChange={(e: any) => updateFormData('education', e.target.value)} />
+                  </div>
+                </div>
+              )}
+
+              {activeTab === 'contato' && (
+                <div className="space-y-4 animate-in fade-in duration-300">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <InputField label="Telefone" field="phone" value={formData.phone} onChange={(e: any) => updateFormData('phone', e.target.value)} mask={maskPhone} />
+                    <InputField label="Telefone de Emergencia" field="emergencyPhone" value={formData.emergencyPhone} onChange={(e: any) => updateFormData('emergencyPhone', e.target.value)} mask={maskPhone} />
+                  </div>
+                </div>
+              )}
+
+              {activeTab === 'endereco' && (
+                <div className="space-y-4 animate-in fade-in duration-300">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <InputField label="CEP" field="zip" value={formData.zip} onChange={handleCepChange} mask={maskCEP} />
+                    <div className="sm:col-span-2 bg-blue-50 border border-blue-100 rounded-xl p-3">
+                      <p className="text-xs text-blue-700 font-semibold">💡 Digite o CEP para preencher automaticamente o endereço</p>
+                    </div>
+                    {/* Estado com busca */}
+                    <div>
+                      <label className="block text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1 ml-1">Estado (UF)</label>
+                      <div className="relative">
+                        <input
+                          type="text"
+                          placeholder="Digite para buscar..."
+                          value={estadoBusca}
+                          onChange={(e) => setEstadoBusca(e.target.value)}
+                          onFocus={() => setEstadoBusca('')}
+                          className="w-full bg-white border-2 border-gray-200 rounded-xl px-4 py-2.5 text-sm font-bold text-gray-700 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all outline-none"
+                        />
+                        <select
+                          value={formData.state}
+                          onChange={(e) => updateFormData('state', e.target.value)}
+                          className="absolute inset-0 opacity-0 cursor-pointer"
+                        >
+                          {estados.filter(e => e.sigla.toLowerCase().includes(estadoBusca.toLowerCase()) || e.nome.toLowerCase().includes(estadoBusca.toLowerCase())).map(e => (
+                            <option key={e.id} value={e.sigla}>{e.sigla} - {e.nome}</option>
+                          ))}
+                        </select>
+                        <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3">
+                          <span className="text-sm font-bold text-blue-600">{formData.state}</span>
+                        </div>
+                      </div>
+                    </div>
+                    {/* Cidade com busca */}
+                    <div>
+                      <label className="block text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1 ml-1">Cidade</label>
+                      <div className="relative">
+                        <input
+                          type="text"
+                          placeholder="Digite para buscar..."
+                          value={cidadeBusca}
+                          onChange={(e) => setCidadeBusca(e.target.value)}
+                          onFocus={() => setCidadeBusca('')}
+                          className="w-full bg-white border-2 border-gray-200 rounded-xl px-4 py-2.5 text-sm font-bold text-gray-700 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all outline-none"
+                        />
+                        <select
+                          value={formData.city}
+                          onChange={(e) => updateFormData('city', e.target.value)}
+                          className="absolute inset-0 opacity-0 cursor-pointer"
+                        >
+                          {cidadesPorEstado.filter(c => c.nome.toLowerCase().includes(cidadeBusca.toLowerCase())).map(c => (
+                            <option key={c.id} value={c.nome}>{c.nome}</option>
+                          ))}
+                        </select>
+                        <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3">
+                          <span className="text-sm font-bold text-blue-600">{formData.city}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <InputField label="Logradouro" field="street" className="sm:col-span-2" value={formData.street} onChange={(e: any) => updateFormData('street', e.target.value)} />
+                    <InputField label="Numero" field="number" value={formData.number} onChange={(e: any) => updateFormData('number', e.target.value)} />
+                    <InputField label="Bairro" field="neighborhood" value={formData.neighborhood} onChange={(e: any) => updateFormData('neighborhood', e.target.value)} />
+                    <InputField label="Complemento" field="complement" value={formData.complement} onChange={(e: any) => updateFormData('complement', e.target.value)} />
+                  </div>
+                </div>
+              )}
+
+              {activeTab === 'saude' && (
+                <div className="space-y-4 animate-in fade-in duration-300">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <CheckboxField label="Fumante" field="smoker" checked={formData.smoker} onChange={(e: any) => updateFormData('smoker', e.target.checked)} />
+                    <CheckboxField label="Pessoa com Deficiencia (PCD)" field="pcd" checked={formData.pcd} onChange={(e: any) => updateFormData('pcd', e.target.checked)} />
+                    <InputField label="Dificuldade de Locomocao" field="mobilityIssue" value={formData.mobilityIssue} onChange={(e: any) => updateFormData('mobilityIssue', e.target.value)} />
+                    <InputField label="Plano de Saude" field="healthPlan" value={formData.healthPlan} onChange={(e: any) => updateFormData('healthPlan', e.target.value)} />
+                    <InputField label="Restricao Alimentar" field="diet" value={formData.diet} onChange={(e: any) => updateFormData('diet', e.target.value)} />
+                    <InputField label="Uso de Medicacao" field="medication" value={formData.medication} onChange={(e: any) => updateFormData('medication', e.target.value)} />
+                    <InputField label="Alergia" field="allergy" value={formData.allergy} onChange={(e: any) => updateFormData('allergy', e.target.value)} />
+                    <InputField label="Descricao PCD" field="pcdDescription" className="sm:col-span-2" value={formData.pcdDescription} onChange={(e: any) => updateFormData('pcdDescription', e.target.value)} />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="px-8 py-5 bg-white border-t border-gray-50 flex flex-col sm:flex-row items-center justify-between gap-3 z-20">
+              <div className="flex gap-2">
+                {activeTab !== 'pessoal' && (
+                  <button 
+                    onClick={() => {
+                      const tabs = ['pessoal', 'familia', 'contato', 'endereco', 'saude'] as const;
+                      const currentIndex = tabs.indexOf(activeTab);
+                      if (currentIndex > 0) setActiveTab(tabs[currentIndex - 1]);
+                    }}
+                    className="px-4 py-2 text-gray-600 font-bold text-xs rounded-xl hover:bg-gray-50 transition-all"
+                  >
+                    ← Anterior
+                  </button>
+                )}
+                {activeTab !== 'saude' && (
+                  <button 
+                    onClick={() => {
+                      const tabs = ['pessoal', 'familia', 'contato', 'endereco', 'saude'] as const;
+                      const currentIndex = tabs.indexOf(activeTab);
+                      if (currentIndex < tabs.length - 1) setActiveTab(tabs[currentIndex + 1]);
+                    }}
+                    className="px-4 py-2 text-gray-600 font-bold text-xs rounded-xl hover:bg-gray-50 transition-all"
+                  >
+                    Próximo →
+                  </button>
+                )}
+              </div>
+              <div className="flex gap-3">
+                <button onClick={() => setShowModal(false)} className="px-5 py-2 text-gray-400 font-black text-[9px] uppercase tracking-[0.2em] hover:text-red-500 transition-colors">Cancelar</button>
+                <button onClick={() => handleSave(true)} className="bg-gray-50 border border-gray-100 text-gray-500 px-6 py-2.5 rounded-xl font-black text-[9px] uppercase tracking-widest hover:bg-gray-100 transition-all">Salvar e Criar Outro</button>
+                <button onClick={() => handleSave(false)} className="bg-blue-600 text-white px-10 py-2.5 rounded-xl font-black text-[10px] shadow-lg shadow-blue-50 hover:bg-blue-700 transition-all active:scale-95 uppercase tracking-widest"><Save className="w-4 h-4 inline mr-2" /> Salvar</button>
+              </div>
             </div>
           </div>
         </div>

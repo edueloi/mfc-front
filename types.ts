@@ -140,6 +140,7 @@ export interface Member {
   profession: string;
   religion: string;
   education: string;
+  photoUrl?: string;
   movementRoles: string[];
   createdAt: string;
   updatedAt: string;

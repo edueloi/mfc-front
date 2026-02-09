@@ -13,7 +13,8 @@ import {
   UserCheck,
   DollarSign,
   BookOpen,
-  Ticket
+  Ticket,
+  Heart
 } from 'lucide-react';
 import { UserRoleType, User as UserType, City } from '../types';
 import { api } from '../api';
@@ -144,10 +145,13 @@ const Layout: React.FC<LayoutProps> = ({ currentUser, onLogout }) => {
           {/* Logo */}
           <div className="p-8 flex items-center justify-between flex-shrink-0">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-blue-600 rounded-[1.2rem] flex items-center justify-center text-white font-black shadow-lg shadow-blue-100 rotate-3">
-                M
+              <div className="w-14 h-14 bg-white border-2 border-blue-100 rounded-2xl flex items-center justify-center shadow-lg">
+                <img src="/imgs/mfc_logo01.png" alt="MFC" className="w-10 h-10 object-contain" />
               </div>
-              <h1 className="text-xl font-black text-slate-900 tracking-tighter">MFC Gestão</h1>
+              <div>
+                <h1 className="text-xl font-black text-slate-900 tracking-tight leading-none">MFC</h1>
+                <p className="text-[10px] text-blue-600 font-black uppercase tracking-widest">Sistema de Gestão</p>
+              </div>
             </div>
             <button 
               className="lg:hidden p-2 hover:bg-slate-50 rounded-xl transition-colors" 
