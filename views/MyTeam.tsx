@@ -172,13 +172,15 @@ const MyTeamView: React.FC<MyTeamViewProps> = ({ teamId, userId, userRole }) => 
   const groupedMembers = useMemo(() => {
     const familyGroups = new Map<string, Member[]>();
     
-    // Agrupar membros por family_name
+    // Agrupar APENAS membros com family_name definido
     membersState.forEach(member => {
-      const familyKey = member.familyName || `sem_familia_${member.id}`;
-      if (!familyGroups.has(familyKey)) {
-        familyGroups.set(familyKey, []);
+      if (member.familyName && member.familyName.trim() !== '') {
+        const familyKey = member.familyName;
+        if (!familyGroups.has(familyKey)) {
+          familyGroups.set(familyKey, []);
+        }
+        familyGroups.get(familyKey)!.push(member);
       }
-      familyGroups.get(familyKey)!.push(member);
     });
 
     const groups: any[] = [];
@@ -213,9 +215,7 @@ const MyTeamView: React.FC<MyTeamViewProps> = ({ teamId, userId, userRole }) => 
       const atrasos = monthsStatus.slice(0, viewMonth).filter(s => !s).length;
 
       // Nome para exibição
-      let displayName = familyName.startsWith('sem_familia_') 
-        ? titular.name 
-        : `Família ${familyName}`;
+      let displayName = `Família ${familyName}`;
       
       if (spouse) {
         displayName = `${titular.nickname || titular.name.split(' ')[0]} & ${spouse.nickname || spouse.name.split(' ')[0]}`;
@@ -229,12 +229,56 @@ const MyTeamView: React.FC<MyTeamViewProps> = ({ teamId, userId, userRole }) => 
         monthsStatus, 
         atrasos,
         amountPerPerson,
-        familyName: familyName.startsWith('sem_familia_') ? null : familyName
+        familyName
       });
     });
 
     return groups.sort((a, b) => b.atrasos - a.atrasos);
   }, [membersState, localPayments, viewYear, viewMonth, defaultMonthlyAmount]);
+
+  const calculateAge = (dob: string) => {
+    if (!dob) return null;
+    const birthDate = new Date(dob);
+    const today = new Date();
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+      age--;
+    }
+    return age;
+  };
+
+  // Próximos aniversariantes (30 dias)
+  const upcomingBirthdays = useMemo(() => {
+    const today = new Date();
+    const thirtyDaysFromNow = new Date();
+    thirtyDaysFromNow.setDate(today.getDate() + 30);
+
+    return membersState
+      .filter(m => m.dob)
+      .map(m => {
+        const birthDate = new Date(m.dob!);
+        const thisYearBirthday = new Date(today.getFullYear(), birthDate.getMonth(), birthDate.getDate());
+        
+        // Se já passou este ano, considera ano que vem
+        if (thisYearBirthday < today) {
+          thisYearBirthday.setFullYear(today.getFullYear() + 1);
+        }
+
+        const daysUntil = Math.ceil((thisYearBirthday.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+        const age = calculateAge(m.dob!) || 0;
+
+        return {
+          member: m,
+          date: thisYearBirthday,
+          daysUntil,
+          age: age + 1, // Idade que vai fazer
+          isToday: daysUntil === 0
+        };
+      })
+      .filter(b => b.daysUntil >= 0 && b.daysUntil <= 30)
+      .sort((a, b) => a.daysUntil - b.daysUntil);
+  }, [membersState]);
 
   const toggleMonthInForm = (mIdx: number) => {
     if (!selectedForPayment) return;
@@ -292,16 +336,32 @@ const MyTeamView: React.FC<MyTeamViewProps> = ({ teamId, userId, userRole }) => 
     }
   };
 
-  const calculateAge = (dob: string) => {
-    if (!dob) return null;
-    const birthDate = new Date(dob);
-    const today = new Date();
-    let age = today.getFullYear() - birthDate.getFullYear();
-    const monthDiff = today.getMonth() - birthDate.getMonth();
-    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-      age--;
+  const handleDeleteFamily = async (familyName: string, memberIds: string[]) => {
+    if (!confirm(`Tem certeza que deseja excluir a família "${familyName}"? Os membros não serão excluídos, apenas desvinculados da família.`)) {
+      return;
     }
-    return age;
+
+    try {
+      // Remove family_name de todos os membros
+      const updates = memberIds.map(memberId => {
+        const member = membersState.find(m => m.id === memberId);
+        if (!member) return Promise.resolve();
+        
+        return api.updateMember(memberId, {
+          ...member,
+          familyName: '',
+          relationshipType: 'Titular',
+          paysMonthly: true
+        });
+      });
+
+      await Promise.all(updates);
+      toast.success(`Família "${familyName}" excluída com sucesso!`);
+      loadData();
+    } catch (error) {
+      toast.error('Erro ao excluir família');
+      console.error(error);
+    }
   };
 
   const handleLaunchMultiPayment = () => {
@@ -425,6 +485,60 @@ const MyTeamView: React.FC<MyTeamViewProps> = ({ teamId, userId, userRole }) => 
               </button>
             )}
           </div>
+
+          {/* PRÓXIMOS ANIVERSARIANTES */}
+          {upcomingBirthdays.length > 0 && (
+            <div className="bg-gradient-to-br from-pink-50 to-purple-50 border-2 border-pink-200 rounded-3xl p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-12 h-12 bg-gradient-to-br from-pink-500 to-purple-500 rounded-2xl flex items-center justify-center">
+                  <Cake className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-black text-gray-900">🎉 Próximos Aniversariantes</h3>
+                  <p className="text-xs text-gray-600 font-bold">Nos próximos 30 dias</p>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                {upcomingBirthdays.map(birthday => (
+                  <div 
+                    key={birthday.member.id}
+                    className={`bg-white rounded-2xl p-4 border-2 transition-all hover:shadow-lg cursor-pointer ${
+                      birthday.isToday ? 'border-pink-400 shadow-lg' : 'border-pink-100'
+                    }`}
+                    onClick={() => navigate(`/mfcistas/${birthday.member.id}`)}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-pink-500 to-purple-500 text-white flex items-center justify-center font-black text-lg flex-shrink-0">
+                        {birthday.member.name.substring(0, 1)}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-black text-gray-900 leading-tight truncate">
+                          {birthday.member.name}
+                        </p>
+                        <p className="text-xs font-bold text-gray-600">
+                          {birthday.isToday ? (
+                            <span className="text-pink-600">🎂 Hoje! {birthday.age} anos</span>
+                          ) : birthday.daysUntil === 1 ? (
+                            <span className="text-purple-600">🎈 Amanhã - {birthday.age} anos</span>
+                          ) : (
+                            <span className="text-gray-600">
+                              {birthday.date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })} - {birthday.age} anos
+                            </span>
+                          )}
+                        </p>
+                        {birthday.daysUntil > 1 && (
+                          <p className="text-[10px] font-bold text-gray-400">
+                            {birthday.daysUntil} dias
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* ESTADO VAZIO - SEM FAMÍLIAS */}
           {groupedMembers.length === 0 && (
@@ -579,20 +693,32 @@ const MyTeamView: React.FC<MyTeamViewProps> = ({ teamId, userId, userRole }) => 
                     <div className="mt-6 pt-6 border-t-2 border-gray-100 animate-in slide-in-from-top duration-300">
                       <div className="mb-4 flex items-center justify-between">
                         <h4 className="text-sm font-black text-gray-700 uppercase tracking-wider">📋 Informações Detalhadas</h4>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setEditingFamily({
-                              name: group.familyName || '',
-                              memberIds: group.members.map((m: Member) => m.id)
-                            });
-                            setShowFamilyModal(true);
-                          }}
-                          className="px-3 py-1.5 bg-purple-100 text-purple-700 rounded-xl text-xs font-bold hover:bg-purple-200 transition-all flex items-center gap-1"
-                        >
-                          <Edit className="w-3 h-3" />
-                          Editar Família
-                        </button>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEditingFamily({
+                                name: group.familyName || '',
+                                memberIds: group.members.map((m: Member) => m.id)
+                              });
+                              setShowFamilyModal(true);
+                            }}
+                            className="px-3 py-1.5 bg-purple-100 text-purple-700 rounded-xl text-xs font-bold hover:bg-purple-200 transition-all flex items-center gap-1"
+                          >
+                            <Edit className="w-3 h-3" />
+                            Editar
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteFamily(group.familyName, group.members.map((m: Member) => m.id));
+                            }}
+                            className="px-3 py-1.5 bg-red-100 text-red-700 rounded-xl text-xs font-bold hover:bg-red-200 transition-all flex items-center gap-1"
+                          >
+                            <X className="w-3 h-3" />
+                            Excluir
+                          </button>
+                        </div>
                       </div>
                       
                       <div className="grid grid-cols-1 gap-4 mb-6">
