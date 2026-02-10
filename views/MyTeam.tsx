@@ -435,22 +435,23 @@ const MyTeamView: React.FC<MyTeamViewProps> = ({ teamId, userId, userRole }) => 
   }
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500 pb-20">
-      {/* HEADER DINÃ‚MICO */}
-      <div className="bg-white p-8 rounded-[3rem] border border-gray-100 shadow-sm">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-          <div className="flex items-center gap-6">
-            <div className="w-16 h-16 bg-blue-600 rounded-3xl flex items-center justify-center text-white shadow-2xl rotate-2">
-              <Users className="w-8 h-8" />
+    <div className="space-y-4 md:space-y-8 animate-in fade-in duration-500 pb-12 md:pb-20 px-2 md:px-0">
+      {/* HEADER DINÂMICO */}
+      <div className="bg-white p-4 md:p-8 rounded-2xl md:rounded-[3rem] border border-gray-100 shadow-sm">
+        <div className="flex flex-col gap-4 md:gap-6">
+          <div className="flex items-center gap-3 md:gap-6">
+            <div className="w-12 h-12 md:w-16 md:h-16 bg-blue-600 rounded-2xl md:rounded-3xl flex items-center justify-center text-white shadow-2xl rotate-2">
+              <Users className="w-6 h-6 md:w-8 md:h-8" />
             </div>
             <div>
-              <h2 className="text-3xl font-black text-gray-900 tracking-tighter leading-none mb-1">{team.name}</h2>
-              <p className="text-[10px] text-gray-400 font-black uppercase tracking-[0.2em] flex items-center gap-2">
-                <MapPin className="w-3.5 h-3.5 text-blue-500" /> {team.city} • UNIDADE {team.state}
+              <h2 className="text-xl md:text-3xl font-black text-gray-900 tracking-tighter leading-none mb-1">{team.name}</h2>
+              <p className="text-[9px] md:text-[10px] text-gray-400 font-black uppercase tracking-wider md:tracking-[0.2em] flex items-center gap-1 md:gap-2">
+                <MapPin className="w-3 h-3 md:w-3.5 md:h-3.5 text-blue-500" /> {team.city} • {team.state}
               </p>
             </div>
           </div>
-          <div className="flex bg-gray-50 p-2 rounded-2xl border border-gray-100 flex-wrap gap-1">
+          <div className="overflow-x-auto -mx-4 md:mx-0 px-4 md:px-0 scrollbar-hide">
+            <div className="flex bg-gray-50 p-1.5 md:p-2 rounded-xl md:rounded-2xl border border-gray-100 gap-1 min-w-max md:min-w-0">
             {[
               { id: 'familias', label: 'Famílias', icon: Heart },
               { id: 'membros', label: 'Membros', icon: Users },
@@ -461,55 +462,58 @@ const MyTeamView: React.FC<MyTeamViewProps> = ({ teamId, userId, userRole }) => 
               <button 
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as any)}
-                className={`px-5 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 ${activeTab === tab.id ? 'bg-white shadow-xl text-blue-600 border border-gray-100' : 'text-gray-400 hover:text-gray-600'}`}
+                className={`flex-shrink-0 px-3 md:px-5 py-2 md:py-3 rounded-lg md:rounded-xl text-[9px] md:text-[10px] font-black uppercase tracking-wider md:tracking-widest transition-all flex items-center justify-center gap-1 md:gap-2 ${activeTab === tab.id ? 'bg-white shadow-xl text-blue-600 border border-gray-100' : 'text-gray-400 hover:text-gray-600'}`}
               >
-                <tab.icon className="w-4 h-4" /> {tab.label}
+                <tab.icon className="w-4 h-4 flex-shrink-0" /> 
+                <span className="hidden sm:inline">{tab.label}</span>
               </button>
             ))}
+          </div>
           </div>
         </div>
       </div>
 
       {/* ABA FAMILIAS */}
       {activeTab === 'familias' && (
-        <div className="space-y-6">
-          <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-black text-gray-900">Famílias da Equipe</h2>
+        <div className="space-y-4 md:space-y-6">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <h2 className="text-xl md:text-2xl font-black text-gray-900">Famílias da Equipe</h2>
             {groupedMembers.length > 0 && (
               <button
                 onClick={handleCreateFamily}
-                className="px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-2xl font-black text-sm uppercase tracking-wider shadow-xl hover:shadow-2xl transition-all active:scale-95 flex items-center gap-2"
+                className="w-full sm:w-auto px-4 md:px-6 py-2.5 md:py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl md:rounded-2xl font-black text-xs md:text-sm uppercase tracking-wider shadow-xl hover:shadow-2xl transition-all active:scale-95 flex items-center justify-center gap-2"
               >
-                <UserPlus className="w-5 h-5" />
-                Criar Nova Família
+                <UserPlus className="w-4 h-4 md:w-5 md:h-5" />
+                <span className="hidden xs:inline">Criar Nova Família</span>
+                <span className="xs:hidden">Nova Família</span>
               </button>
             )}
           </div>
 
           {/* PRÓXIMOS ANIVERSARIANTES */}
           {upcomingBirthdays.length > 0 && (
-            <div className="bg-gradient-to-br from-pink-50 to-purple-50 border-2 border-pink-200 rounded-3xl p-6">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-12 h-12 bg-gradient-to-br from-pink-500 to-purple-500 rounded-2xl flex items-center justify-center">
-                  <Cake className="w-6 h-6 text-white" />
+            <div className="bg-gradient-to-br from-pink-50 to-purple-50 border-2 border-pink-200 rounded-2xl md:rounded-3xl p-4 md:p-6">
+              <div className="flex items-center gap-2 md:gap-3 mb-3 md:mb-4">
+                <div className="w-10 h-10 md:w-12 md:h-12 bg-gradient-to-br from-pink-500 to-purple-500 rounded-xl md:rounded-2xl flex items-center justify-center">
+                  <Cake className="w-5 h-5 md:w-6 md:h-6 text-white" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-black text-gray-900">🎉 Próximos Aniversariantes</h3>
-                  <p className="text-xs text-gray-600 font-bold">Nos próximos 30 dias</p>
+                  <h3 className="text-base md:text-lg font-black text-gray-900">🎉 Próximos Aniversariantes</h3>
+                  <p className="text-[10px] md:text-xs text-gray-600 font-bold">Nos próximos 30 dias</p>
                 </div>
               </div>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 md:gap-3">
                 {upcomingBirthdays.map(birthday => (
                   <div 
                     key={birthday.member.id}
-                    className={`bg-white rounded-2xl p-4 border-2 transition-all hover:shadow-lg cursor-pointer ${
+                    className={`bg-white rounded-xl md:rounded-2xl p-3 md:p-4 border-2 transition-all hover:shadow-lg cursor-pointer ${
                       birthday.isToday ? 'border-pink-400 shadow-lg' : 'border-pink-100'
                     }`}
                     onClick={() => navigate(`/mfcistas/${birthday.member.id}`)}
                   >
-                    <div className="flex items-center gap-3">
-                      <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-pink-500 to-purple-500 text-white flex items-center justify-center font-black text-lg flex-shrink-0">
+                    <div className="flex items-center gap-2 md:gap-3">
+                      <div className="w-10 h-10 md:w-12 md:h-12 rounded-lg md:rounded-xl bg-gradient-to-br from-pink-500 to-purple-500 text-white flex items-center justify-center font-black text-base md:text-lg flex-shrink-0">
                         {birthday.member.name.substring(0, 1)}
                       </div>
                       <div className="flex-1 min-w-0">
@@ -604,8 +608,8 @@ const MyTeamView: React.FC<MyTeamViewProps> = ({ teamId, userId, userRole }) => 
 
           {/* LISTA DE FAMÍLIAS */}
           {groupedMembers.length > 0 && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {groupedMembers.map((group, idx) => {
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6 lg:gap-8">
+              {groupedMembers.map((group, idx) => {
               const progressPercent = Math.round((group.monthsStatus.filter((s: boolean) => s).length / viewMonth) * 100);
               const isLate = group.atrasos > 0;
               const isExpanded = expandedFamily === group.familyName || expandedFamily === `group_${idx}`;
@@ -614,44 +618,44 @@ const MyTeamView: React.FC<MyTeamViewProps> = ({ teamId, userId, userRole }) => 
               return (
                 <div
                   key={idx}
-                  className={`bg-white rounded-[2.5rem] p-8 border-2 transition-all ${
+                  className={`bg-white rounded-2xl md:rounded-[2.5rem] p-4 md:p-6 lg:p-8 border-2 transition-all ${
                     isLate ? 'border-red-100 hover:border-red-300' : 'border-emerald-100 hover:border-emerald-300'
                   } ${isExpanded ? 'shadow-2xl' : 'hover:shadow-2xl'}`}
                 >
                   {/* HEADER DA FAMÍLIA - CLICÁVEL */}
                   <div onClick={() => setExpandedFamily(isExpanded ? null : familyKey)} className="cursor-pointer">
-                    <div className="flex items-start justify-between mb-6">
-                      <div className="flex items-center gap-4">
-                        <div className={`w-16 h-16 rounded-2xl flex items-center justify-center transition-all ${
+                    <div className="flex items-start justify-between mb-4 md:mb-6 gap-2">
+                      <div className="flex items-center gap-2 md:gap-4 flex-1 min-w-0">
+                        <div className={`w-12 h-12 md:w-16 md:h-16 rounded-xl md:rounded-2xl flex items-center justify-center transition-all flex-shrink-0 ${
                           isLate ? 'bg-red-50 text-red-500' : 'bg-emerald-50 text-emerald-600'
                         }`}>
-                          {group.type === 'couple' ? <Heart className="w-8 h-8" /> : <Users className="w-8 h-8" />}
+                          {group.type === 'couple' ? <Heart className="w-6 h-6 md:w-8 md:h-8" /> : <Users className="w-6 h-6 md:w-8 md:h-8" />}
                         </div>
-                        <div>
-                          <h3 className="text-xl font-black text-gray-900 leading-none mb-2">{group.displayName}</h3>
-                          <div className="flex items-center gap-2 flex-wrap">
+                        <div className="flex-1 min-w-0">
+                          <h3 className="text-base md:text-xl font-black text-gray-900 leading-none mb-1 md:mb-2 truncate">{group.displayName}</h3>
+                          <div className="flex items-center gap-1 md:gap-2 flex-wrap">
                             {group.familyName && !group.familyName.startsWith('sem_familia_') && (
-                              <span className="text-xs font-black text-purple-600 bg-purple-50 px-3 py-1 rounded-full">
+                              <span className="text-[10px] md:text-xs font-black text-purple-600 bg-purple-50 px-2 md:px-3 py-1 rounded-full whitespace-nowrap">
                                 👨‍👩‍👧‍👦 Família {group.familyName}
                               </span>
                             )}
-                            <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">
+                            <span className="text-[8px] md:text-[9px] font-bold text-gray-400 uppercase tracking-wider whitespace-nowrap">
                               {group.members.length} {group.members.length === 1 ? 'membro' : 'membros'}
                             </span>
                           </div>
                         </div>
                       </div>
-                      <div className="text-right flex items-center gap-3">
-                        <div>
-                          <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Progresso {viewYear}</p>
-                          <p className={`text-3xl font-black ${
+                      <div className="text-right flex items-center gap-2 md:gap-3 flex-shrink-0">
+                        <div className="hidden sm:block">
+                          <p className="text-[8px] md:text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Progresso {viewYear}</p>
+                          <p className={`text-2xl md:text-3xl font-black ${
                             progressPercent === 100 ? 'text-emerald-600' : progressPercent >= 75 ? 'text-blue-600' : progressPercent >= 50 ? 'text-amber-600' : 'text-red-600'
                           }`}>{progressPercent}%</p>
                         </div>
-                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${
+                        <div className={`w-8 h-8 md:w-10 md:h-10 rounded-lg md:rounded-xl flex items-center justify-center transition-all ${
                           isExpanded ? 'bg-purple-100 text-purple-600' : 'bg-gray-100 text-gray-400'
                         }`}>
-                          {isExpanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+                          {isExpanded ? <ChevronUp className="w-4 h-4 md:w-5 md:h-5" /> : <ChevronDown className="w-4 h-4 md:w-5 md:h-5" />}
                         </div>
                       </div>
                     </div>
@@ -659,22 +663,22 @@ const MyTeamView: React.FC<MyTeamViewProps> = ({ teamId, userId, userRole }) => 
 
                   {/* MEMBROS DA FAMÍLIA - VERSÃO RESUMIDA */}
                   {!isExpanded && (
-                  <div className="bg-gray-50 rounded-2xl p-6 mb-6 space-y-3">
-                    <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-3">Membros da Família</p>
+                  <div className="bg-gray-50 rounded-xl md:rounded-2xl p-3 md:p-6 mb-4 md:mb-6 space-y-2 md:space-y-3">
+                    <p className="text-[8px] md:text-[9px] font-black text-gray-400 uppercase tracking-widest mb-2 md:mb-3">Membros da Família</p>
                     {group.members.map((member: Member) => (
-                      <div key={member.id} className="flex items-center justify-between bg-white rounded-xl p-3 hover:shadow-md transition-all">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-purple-500 text-white flex items-center justify-center font-black text-sm">
+                      <div key={member.id} className="flex items-center justify-between bg-white rounded-lg md:rounded-xl p-2 md:p-3 hover:shadow-md transition-all">
+                        <div className="flex items-center gap-2 md:gap-3 flex-1 min-w-0">
+                          <div className="w-8 h-8 md:w-10 md:h-10 rounded-lg md:rounded-xl bg-gradient-to-br from-blue-500 to-purple-500 text-white flex items-center justify-center font-black text-xs md:text-sm flex-shrink-0">
                             {member.name.substring(0, 1)}
                           </div>
-                          <div>
-                            <p className="text-sm font-bold text-gray-900">{member.nickname || member.name.split(' ')[0]}</p>
-                            <p className="text-[8px] font-bold text-gray-400 uppercase tracking-wider">
+                          <div className="min-w-0">
+                            <p className="text-xs md:text-sm font-bold text-gray-900 truncate">{member.nickname || member.name.split(' ')[0]}</p>
+                            <p className="text-[7px] md:text-[8px] font-bold text-gray-400 uppercase tracking-wider">
                               {member.relationshipType || 'Titular'}
                             </p>
                           </div>
                         </div>
-                        <div>
+                        <div className="flex-shrink-0">
                           {member.paysMonthly === false ? (
                             <span className="text-[8px] font-black px-3 py-1 rounded-full bg-gray-100 text-gray-500">Isento</span>
                           ) : (
@@ -690,10 +694,10 @@ const MyTeamView: React.FC<MyTeamViewProps> = ({ teamId, userId, userRole }) => 
 
                   {/* CONTEÚDO EXPANDIDO - DETALHES COMPLETOS */}
                   {isExpanded && (
-                    <div className="mt-6 pt-6 border-t-2 border-gray-100 animate-in slide-in-from-top duration-300">
-                      <div className="mb-4 flex items-center justify-between">
-                        <h4 className="text-sm font-black text-gray-700 uppercase tracking-wider">📋 Informações Detalhadas</h4>
-                        <div className="flex items-center gap-2">
+                    <div className="mt-4 md:mt-6 pt-4 md:pt-6 border-t-2 border-gray-100 animate-in slide-in-from-top duration-300">
+                      <div className="mb-3 md:mb-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+                        <h4 className="text-xs md:text-sm font-black text-gray-700 uppercase tracking-wider">📋 Informações Detalhadas</h4>
+                        <div className="flex items-center gap-1.5 md:gap-2">
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
@@ -703,25 +707,25 @@ const MyTeamView: React.FC<MyTeamViewProps> = ({ teamId, userId, userRole }) => 
                               });
                               setShowFamilyModal(true);
                             }}
-                            className="px-3 py-1.5 bg-purple-100 text-purple-700 rounded-xl text-xs font-bold hover:bg-purple-200 transition-all flex items-center gap-1"
+                            className="px-2.5 md:px-3 py-1.5 bg-purple-100 text-purple-700 rounded-lg md:rounded-xl text-[10px] md:text-xs font-bold hover:bg-purple-200 transition-all flex items-center gap-1"
                           >
                             <Edit className="w-3 h-3" />
-                            Editar
+                            <span className="hidden xs:inline">Editar</span>
                           </button>
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
                               handleDeleteFamily(group.familyName, group.members.map((m: Member) => m.id));
                             }}
-                            className="px-3 py-1.5 bg-red-100 text-red-700 rounded-xl text-xs font-bold hover:bg-red-200 transition-all flex items-center gap-1"
+                            className="px-2.5 md:px-3 py-1.5 bg-red-100 text-red-700 rounded-lg md:rounded-xl text-[10px] md:text-xs font-bold hover:bg-red-200 transition-all flex items-center gap-1"
                           >
                             <X className="w-3 h-3" />
-                            Excluir
+                            <span className="hidden xs:inline">Excluir</span>
                           </button>
                         </div>
                       </div>
                       
-                      <div className="grid grid-cols-1 gap-4 mb-6">
+                      <div className="grid grid-cols-1 gap-3 md:gap-4 mb-4 md:mb-6">
                         {group.members.map((member: Member) => {
                           const age = calculateAge(member.dob || '');
                           const maritalStatusText = {
@@ -734,31 +738,31 @@ const MyTeamView: React.FC<MyTeamViewProps> = ({ teamId, userId, userRole }) => 
                           return (
                             <div 
                               key={member.id} 
-                              className="bg-gradient-to-br from-white to-gray-50 rounded-2xl p-5 border-2 border-gray-100 hover:border-purple-200 transition-all hover:shadow-lg cursor-pointer"
+                              className="bg-gradient-to-br from-white to-gray-50 rounded-xl md:rounded-2xl p-3 md:p-5 border-2 border-gray-100 hover:border-purple-200 transition-all hover:shadow-lg cursor-pointer"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 navigate(`/mfcistas/${member.id}`);
                               }}
                             >
-                              <div className="flex items-start gap-4">
+                              <div className="flex items-start gap-2 md:gap-4">
                                 {/* Avatar Grande */}
-                                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 text-white flex items-center justify-center font-black text-2xl shadow-lg flex-shrink-0">
+                                <div className="w-12 h-12 md:w-16 md:h-16 rounded-xl md:rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 text-white flex items-center justify-center font-black text-lg md:text-2xl shadow-lg flex-shrink-0">
                                   {member.name.substring(0, 1)}
                                 </div>
                                 
                                 {/* Informações Principais */}
                                 <div className="flex-1 min-w-0">
-                                  <div className="flex items-center justify-between mb-3">
-                                    <div>
-                                      <h5 className="text-lg font-black text-gray-900 leading-none mb-1">
+                                  <div className="flex items-center justify-between mb-2 md:mb-3">
+                                    <div className="min-w-0 flex-1">
+                                      <h5 className="text-sm md:text-lg font-black text-gray-900 leading-none mb-1 truncate">
                                         {member.name}
                                       </h5>
-                                      <div className="flex items-center gap-2 flex-wrap">
-                                        <span className="text-xs font-bold px-2 py-1 rounded-lg bg-purple-100 text-purple-700">
+                                      <div className="flex items-center gap-1 md:gap-2 flex-wrap">
+                                        <span className="text-[10px] md:text-xs font-bold px-1.5 md:px-2 py-0.5 md:py-1 rounded-md md:rounded-lg bg-purple-100 text-purple-700">
                                           {member.relationshipType || 'Titular'}
                                         </span>
                                         {member.nickname && (
-                                          <span className="text-xs text-gray-500">
+                                          <span className="text-[10px] md:text-xs text-gray-500 truncate">
                                             "{member.nickname}"
                                           </span>
                                         )}
@@ -767,35 +771,35 @@ const MyTeamView: React.FC<MyTeamViewProps> = ({ teamId, userId, userRole }) => 
                                   </div>
                                   
                                   {/* Grid de Informações Compacto */}
-                                  <div className="grid grid-cols-2 gap-2 text-xs">
+                                  <div className="grid grid-cols-2 gap-1.5 md:gap-2 text-[10px] md:text-xs">
                                     {age !== null && (
-                                      <div className="flex items-center gap-2">
-                                        <Cake className="w-3.5 h-3.5 text-pink-500 flex-shrink-0" />
+                                      <div className="flex items-center gap-1 md:gap-2">
+                                        <Cake className="w-3 h-3 md:w-3.5 md:h-3.5 text-pink-500 flex-shrink-0" />
                                         <span className="font-bold text-gray-700">{age} anos</span>
                                       </div>
                                     )}
                                     
                                     {member.profession && (
-                                      <div className="flex items-center gap-2">
-                                        <Briefcase className="w-3.5 h-3.5 text-blue-500 flex-shrink-0" />
+                                      <div className="flex items-center gap-1 md:gap-2">
+                                        <Briefcase className="w-3 h-3 md:w-3.5 md:h-3.5 text-blue-500 flex-shrink-0" />
                                         <span className="font-bold text-gray-700 truncate">{member.profession}</span>
                                       </div>
                                     )}
                                     
-                                    <div className="flex items-center gap-2 col-span-2">
-                                      <span className="text-base flex-shrink-0">💕</span>
-                                      <span className="font-bold text-gray-700 truncate text-xs">{maritalStatusText}</span>
+                                    <div className="flex items-center gap-1 md:gap-2 col-span-2">
+                                      <span className="text-sm md:text-base flex-shrink-0">💕</span>
+                                      <span className="font-bold text-gray-700 truncate">{maritalStatusText}</span>
                                     </div>
                                     
                                     {member.paysMonthly === false ? (
-                                      <div className="col-span-2 flex items-center gap-2 bg-gray-50 rounded-lg px-2 py-1">
+                                      <div className="col-span-2 flex items-center gap-1 md:gap-2 bg-gray-50 rounded-md md:rounded-lg px-1.5 md:px-2 py-1">
                                         <span>🎓</span>
-                                        <span className="font-black text-gray-600 text-xs">Isento de Pagamento</span>
+                                        <span className="font-black text-gray-600">Isento de Pagamento</span>
                                       </div>
                                     ) : (
-                                      <div className="col-span-2 flex items-center gap-2 bg-emerald-50 rounded-lg px-2 py-1">
+                                      <div className="col-span-2 flex items-center gap-1 md:gap-2 bg-emerald-50 rounded-md md:rounded-lg px-1.5 md:px-2 py-1">
                                         <span>💳</span>
-                                        <span className="font-black text-emerald-700 text-xs">R$ {group.amountPerPerson.toFixed(2)}/mês</span>
+                                        <span className="font-black text-emerald-700">R$ {group.amountPerPerson.toFixed(2)}/mês</span>
                                       </div>
                                     )}
                                   </div>
@@ -809,14 +813,14 @@ const MyTeamView: React.FC<MyTeamViewProps> = ({ teamId, userId, userRole }) => 
                   )}
 
                   {/* BARRA DE PROGRESSO MENSAL */}
-                  <div className="mb-6">
-                    <div className="flex items-center justify-between mb-3">
-                      <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Pagamentos por Mês</p>
-                      <p className="text-[9px] font-black text-gray-600">
+                  <div className="mb-4 md:mb-6">
+                    <div className="flex items-center justify-between mb-2 md:mb-3">
+                      <p className="text-[8px] md:text-[9px] font-black text-gray-400 uppercase tracking-widest">Pagamentos por Mês</p>
+                      <p className="text-[8px] md:text-[9px] font-black text-gray-600">
                         {group.monthsStatus.slice(0, viewMonth).filter((s: boolean) => s).length}/{viewMonth} meses
                       </p>
                     </div>
-                    <div className="grid grid-cols-12 gap-1">
+                    <div className="grid grid-cols-12 gap-0.5 md:gap-1">
                       {group.monthsStatus.map((isPaid: boolean, mIdx: number) => {
                         const monthNum = mIdx + 1;
                         const isFuture = monthNum > viewMonth;
@@ -827,7 +831,7 @@ const MyTeamView: React.FC<MyTeamViewProps> = ({ teamId, userId, userRole }) => 
                         
                         return (
                           <div key={mIdx} className="relative group/month">
-                            <div className={`h-8 rounded-lg ${bgColor} transition-all hover:scale-110 cursor-pointer`}></div>
+                            <div className={`h-6 md:h-8 rounded-md md:rounded-lg ${bgColor} transition-all hover:scale-110 cursor-pointer`}></div>
                             <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-[8px] font-bold px-2 py-1 rounded opacity-0 group-hover/month:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-10">
                               {['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'][mIdx]} {viewYear}
                             </div>
@@ -838,18 +842,18 @@ const MyTeamView: React.FC<MyTeamViewProps> = ({ teamId, userId, userRole }) => 
                   </div>
 
                   {/* ESTATÍSTICAS E AÇÕES */}
-                  <div className="flex items-center justify-between pt-6 border-t-2 border-gray-100">
-                    <div className="flex gap-6">
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-4 md:pt-6 border-t-2 border-gray-100">
+                    <div className="flex flex-wrap gap-3 md:gap-6">
                       <div>
-                        <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1">Valor Mensal</p>
-                        <p className="text-lg font-black text-blue-600">
+                        <p className="text-[7px] md:text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1">Valor Mensal</p>
+                        <p className="text-base md:text-lg font-black text-blue-600">
                           R$ {(group.amountPerPerson * group.payingMembers.length).toFixed(2)}
                         </p>
                       </div>
                       {isLate && (
                         <div>
-                          <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1">Pendências</p>
-                          <p className="text-lg font-black text-red-600">{group.atrasos} {group.atrasos === 1 ? 'mês' : 'meses'}</p>
+                          <p className="text-[7px] md:text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1">Pendências</p>
+                          <p className="text-base md:text-lg font-black text-red-600">{group.atrasos} {group.atrasos === 1 ? 'mês' : 'meses'}</p>
                         </div>
                       )}
                     </div>
@@ -865,35 +869,35 @@ const MyTeamView: React.FC<MyTeamViewProps> = ({ teamId, userId, userRole }) => 
                         });
                         setShowPayModal(true);
                       }}
-                      className="px-6 py-3 bg-blue-600 text-white rounded-2xl font-black text-xs uppercase tracking-wider shadow-lg hover:bg-blue-700 transition-all active:scale-95 flex items-center gap-2"
+                      className="w-full sm:w-auto px-4 md:px-6 py-2.5 md:py-3 bg-blue-600 text-white rounded-xl md:rounded-2xl font-black text-[10px] md:text-xs uppercase tracking-wider shadow-lg hover:bg-blue-700 transition-all active:scale-95 flex items-center justify-center gap-2"
                     >
-                      <Plus className="w-4 h-4" /> Lançar
+                      <Plus className="w-3 h-3 md:w-4 md:h-4" /> <span>Lançar</span>
                     </button>
                   </div>
                 </div>
               );
             })}
-          </div>
+            </div>
           )}
         </div>
       )}
 
       {activeTab === 'membros' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-6">
           {membersState.map(m => (
-            <div key={m.id} className="bg-white p-6 rounded-[2.5rem] border border-gray-100 shadow-sm hover:shadow-2xl transition-all cursor-pointer group" onClick={() => navigate(`/mfcistas/${m.id}`)}>
-              <div className="flex items-center gap-4 mb-6">
-                <div className="w-14 h-14 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center font-black text-xl group-hover:bg-blue-600 group-hover:text-white transition-all">
+            <div key={m.id} className="bg-white p-4 md:p-6 rounded-2xl md:rounded-[2.5rem] border border-gray-100 shadow-sm hover:shadow-2xl transition-all cursor-pointer group" onClick={() => navigate(`/mfcistas/${m.id}`)}>
+              <div className="flex items-center gap-2 md:gap-4 mb-4 md:mb-6">
+                <div className="w-12 h-12 md:w-14 md:h-14 rounded-xl md:rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center font-black text-lg md:text-xl group-hover:bg-blue-600 group-hover:text-white transition-all flex-shrink-0">
                   {m.name.substring(0, 1)}
                 </div>
-                <div>
-                  <h4 className="font-black text-gray-900 leading-tight">{m.name}</h4>
-                  <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest">{m.nickname || 'Membro'}</p>
+                <div className="min-w-0 flex-1">
+                  <h4 className="font-black text-gray-900 leading-tight text-sm md:text-base truncate">{m.name}</h4>
+                  <p className="text-[9px] md:text-[10px] text-gray-400 font-black uppercase tracking-widest truncate">{m.nickname || 'Membro'}</p>
                 </div>
               </div>
-              <div className="flex items-center justify-between pt-4 border-t border-gray-50">
-                  <span className="text-[9px] font-black text-gray-300 uppercase tracking-widest italic">{m.movementRoles[0] || 'Ativo'}</span>
-                  <span className={`px-4 py-1 rounded-xl text-[9px] font-black uppercase tracking-widest ${m.status === 'Ativo' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>{m.status}</span>
+              <div className="flex items-center justify-between pt-3 md:pt-4 border-t border-gray-50 gap-2">
+                  <span className="text-[8px] md:text-[9px] font-black text-gray-300 uppercase tracking-widest italic truncate">{m.movementRoles[0] || 'Ativo'}</span>
+                  <span className={`px-2 md:px-4 py-1 rounded-lg md:rounded-xl text-[8px] md:text-[9px] font-black uppercase tracking-widest flex-shrink-0 ${m.status === 'Ativo' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>{m.status}</span>
               </div>
             </div>
           ))}
@@ -901,14 +905,14 @@ const MyTeamView: React.FC<MyTeamViewProps> = ({ teamId, userId, userRole }) => 
       )}
 
       {activeTab === 'mensalidades' && (
-        <div className="space-y-8 animate-in slide-in-from-bottom-4 duration-500">
+        <div className="space-y-4 md:space-y-8 animate-in slide-in-from-bottom-4 duration-500">
           {/* AVISO DE CONFIGURAÇÃO - Somente para Admins */}
           {userRole === UserRoleType.ADMIN && (
-            <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 flex items-start gap-3">
-              <SettingsIcon className="w-5 h-5 text-blue-600 mt-0.5 shrink-0" />
+            <div className="bg-blue-50 border border-blue-200 rounded-xl md:rounded-2xl p-3 md:p-4 flex items-start gap-2 md:gap-3">
+              <SettingsIcon className="w-4 h-4 md:w-5 md:h-5 text-blue-600 mt-0.5 shrink-0" />
               <div>
-                <h4 className="text-sm font-black text-blue-900">Valor Padrão da Mensalidade</h4>
-                <p className="text-xs text-blue-700 mt-1">
+                <h4 className="text-xs md:text-sm font-black text-blue-900">Valor Padrão da Mensalidade</h4>
+                <p className="text-[10px] md:text-xs text-blue-700 mt-1">
                   O valor atual é <span className="font-black">R$ {defaultMonthlyAmount.toFixed(2)}</span> por mês. 
                   Você pode alterar este valor nas <span className="font-black">Configurações do Sistema</span> (menu lateral → Configurações → Financeiro).
                 </p>
@@ -917,28 +921,28 @@ const MyTeamView: React.FC<MyTeamViewProps> = ({ teamId, userId, userRole }) => 
           )}
 
           {/* RESUMO E FILTROS */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-             <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm space-y-6">
-                <h3 className="text-xl font-black text-gray-900 tracking-tight">Filtro de Visão</h3>
-                <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 md:gap-6">
+             <div className="bg-white p-4 md:p-8 rounded-2xl md:rounded-[2.5rem] border border-gray-100 shadow-sm space-y-4 md:space-y-6">
+                <h3 className="text-base md:text-xl font-black text-gray-900 tracking-tight">Filtro de Visão</h3>
+                <div className="grid grid-cols-2 gap-2 md:gap-4">
                   <div className="space-y-1">
-                    <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">Ano Exercício</label>
-                    <select className="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 text-xs font-black outline-none" value={viewYear} onChange={(e) => setViewYear(parseInt(e.target.value))}>
+                    <label className="text-[8px] md:text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">Ano Exercício</label>
+                    <select className="w-full bg-gray-50 border border-gray-100 rounded-lg md:rounded-xl px-3 md:px-4 py-2 md:py-3 text-[10px] md:text-xs font-black outline-none" value={viewYear} onChange={(e) => setViewYear(parseInt(e.target.value))}>
                       {[2024, 2025, 2026, 2027].map(y => <option key={y} value={y}>{y}</option>)}
                     </select>
                   </div>
                   <div className="space-y-1">
-                    <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">mês Atual</label>
-                    <select className="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 text-xs font-black outline-none" value={viewMonth} onChange={(e) => setViewMonth(parseInt(e.target.value))}>
+                    <label className="text-[8px] md:text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">mês Atual</label>
+                    <select className="w-full bg-gray-50 border border-gray-100 rounded-lg md:rounded-xl px-3 md:px-4 py-2 md:py-3 text-[10px] md:text-xs font-black outline-none" value={viewMonth} onChange={(e) => setViewMonth(parseInt(e.target.value))}>
                       {monthNames.map((n, i) => <option key={i} value={i+1}>{n}</option>)}
                     </select>
                   </div>
                 </div>
-                <div className="p-4 bg-blue-50 rounded-2xl border border-blue-100 flex items-center justify-between">
-                    <BarChart3 className="w-5 h-5 text-blue-600" />
-                    <div className="text-right">
-                        <p className="text-[9px] font-black text-blue-400 uppercase tracking-widest leading-none">Esperado no mês</p>
-                        <p className="text-lg font-black text-blue-700">
+                <div className="p-3 md:p-4 bg-blue-50 rounded-xl md:rounded-2xl border border-blue-100 flex items-center justify-between gap-2">
+                    <BarChart3 className="w-4 h-4 md:w-5 md:h-5 text-blue-600 flex-shrink-0" />
+                    <div className="text-right min-w-0">
+                        <p className="text-[8px] md:text-[9px] font-black text-blue-400 uppercase tracking-widest leading-none">Esperado no mês</p>
+                        <p className="text-base md:text-lg font-black text-blue-700">
                           R$ {(() => {
                             const payingMembers = membersState.filter(m => m.paysMonthly !== false);
                             let total = 0;
@@ -959,53 +963,53 @@ const MyTeamView: React.FC<MyTeamViewProps> = ({ teamId, userId, userRole }) => 
                 </div>
              </div>
 
-             <div className="bg-emerald-600 p-8 rounded-[2.5rem] text-white shadow-xl shadow-emerald-100 relative overflow-hidden group">
-                <TrendingUp className="absolute -right-4 -bottom-4 w-32 h-32 opacity-10 group-hover:scale-110 transition-transform" />
-                <p className="text-[10px] font-black text-emerald-200 uppercase tracking-[0.2em] mb-1">Arrecadado em {monthNames[viewMonth-1]}</p>
-                <h3 className="text-4xl font-black tracking-tighter leading-none">R$ {financeStats.monthlyTotal.toFixed(2)}</h3>
-                <div className="mt-8 pt-6 border-t border-emerald-500/30 flex items-center justify-between">
-                    <span className="text-[10px] font-black uppercase tracking-widest">Total {viewYear}:</span>
-                    <span className="text-xl font-black">R$ {financeStats.yearlyTotal.toFixed(2)}</span>
+             <div className="bg-emerald-600 p-4 md:p-8 rounded-2xl md:rounded-[2.5rem] text-white shadow-xl shadow-emerald-100 relative overflow-hidden group">
+                <TrendingUp className="absolute -right-4 -bottom-4 w-24 h-24 md:w-32 md:h-32 opacity-10 group-hover:scale-110 transition-transform" />
+                <p className="text-[9px] md:text-[10px] font-black text-emerald-200 uppercase tracking-[0.2em] mb-1">Arrecadado em {monthNames[viewMonth-1]}</p>
+                <h3 className="text-2xl md:text-4xl font-black tracking-tighter leading-none">R$ {financeStats.monthlyTotal.toFixed(2)}</h3>
+                <div className="mt-4 md:mt-8 pt-3 md:pt-6 border-t border-emerald-500/30 flex items-center justify-between">
+                    <span className="text-[9px] md:text-[10px] font-black uppercase tracking-widest">Total {viewYear}:</span>
+                    <span className="text-base md:text-xl font-black">R$ {financeStats.yearlyTotal.toFixed(2)}</span>
                 </div>
              </div>
 
-             <div className="bg-white p-8 rounded-[2.5rem] border border-red-100 shadow-xl shadow-red-50 relative overflow-hidden group">
-                <AlertTriangle className="absolute -right-4 -bottom-4 w-32 h-32 text-red-500 opacity-5 group-hover:scale-110 transition-transform" />
-                <p className="text-[10px] font-black text-red-400 uppercase tracking-[0.2em] mb-1">Pendências Acumuladas</p>
-                <h3 className="text-4xl font-black text-red-600 tracking-tighter leading-none">R$ {financeStats.pendingAmount.toFixed(2)}</h3>
-                <p className="mt-4 text-[9px] font-bold text-gray-400 italic">Zé, esse é o valor que ainda falta entrar no caixa este ano.</p>
+             <div className="bg-white p-4 md:p-8 rounded-2xl md:rounded-[2.5rem] border border-red-100 shadow-xl shadow-red-50 relative overflow-hidden group">
+                <AlertTriangle className="absolute -right-4 -bottom-4 w-24 h-24 md:w-32 md:h-32 text-red-500 opacity-5 group-hover:scale-110 transition-transform" />
+                <p className="text-[9px] md:text-[10px] font-black text-red-400 uppercase tracking-[0.2em] mb-1">Pendências Acumuladas</p>
+                <h3 className="text-2xl md:text-4xl font-black text-red-600 tracking-tighter leading-none">R$ {financeStats.pendingAmount.toFixed(2)}</h3>
+                <p className="mt-3 md:mt-4 text-[8px] md:text-[9px] font-bold text-gray-400 italic">Zé, esse é o valor que ainda falta entrar no caixa este ano.</p>
              </div>
           </div>
 
           {/* LISTA DE MENSALIDADES COM TIMELINE */}
-          <div className="bg-white rounded-[3rem] border border-gray-100 shadow-sm overflow-hidden">
-             <header className="p-8 border-b border-gray-50 flex items-center justify-between bg-gray-50/20">
+          <div className="bg-white rounded-2xl md:rounded-[3rem] border border-gray-100 shadow-sm overflow-hidden">
+             <header className="p-4 md:p-8 border-b border-gray-50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-gray-50/20">
                 <div>
-                   <h3 className="text-xl font-black text-gray-900 tracking-tight">Fluxo de Caixa da Equipe</h3>
-                   <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest mt-1">Legenda: <span className="text-emerald-500">● Pago</span> | <span className="text-red-500">● Atraso</span> | <span className="text-gray-300">○ Futuro</span></p>
+                   <h3 className="text-base md:text-xl font-black text-gray-900 tracking-tight">Fluxo de Caixa da Equipe</h3>
+                   <p className="text-[9px] md:text-[10px] text-gray-400 font-black uppercase tracking-widest mt-1">Legenda: <span className="text-emerald-500">● Pago</span> | <span className="text-red-500">● Atraso</span> | <span className="text-gray-300">○ Futuro</span></p>
                 </div>
-                <div className="px-4 py-2 bg-white rounded-xl border border-gray-100 text-[9px] font-black text-gray-500 uppercase tracking-widest shadow-sm">
+                <div className="px-3 md:px-4 py-1.5 md:py-2 bg-white rounded-lg md:rounded-xl border border-gray-100 text-[8px] md:text-[9px] font-black text-gray-500 uppercase tracking-widest shadow-sm">
                    {groupedMembers.length} Unidades Familiares
                 </div>
              </header>
 
              <div className="divide-y divide-gray-50">
                 {groupedMembers.map((group, idx) => (
-                  <div key={idx} className="p-8 flex flex-col xl:flex-row xl:items-center justify-between gap-8 hover:bg-gray-50/50 transition-all">
-                    <div className="flex items-center gap-6 min-w-[250px]">
-                      <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all ${group.atrasos === 0 ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-500'}`}>
-                        {group.type === 'couple' ? <Heart className="w-7 h-7" /> : <Users className="w-7 h-7" />}
+                  <div key={idx} className="p-4 md:p-8 flex flex-col xl:flex-row xl:items-center justify-between gap-4 md:gap-8 hover:bg-gray-50/50 transition-all">
+                    <div className="flex items-center gap-3 md:gap-6 min-w-0">
+                      <div className={`w-12 h-12 md:w-14 md:h-14 rounded-xl md:rounded-2xl flex items-center justify-center flex-shrink-0 transition-all ${group.atrasos === 0 ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-500'}`}>
+                        {group.type === 'couple' ? <Heart className="w-5 h-5 md:w-7 md:h-7" /> : <Users className="w-5 h-5 md:w-7 md:h-7" />}
                       </div>
-                      <div className="space-y-2">
+                      <div className="space-y-1 md:space-y-2 min-w-0 flex-1">
                         <div>
-                          <h4 className="text-lg font-black text-gray-900 leading-none">{group.displayName}</h4>
+                          <h4 className="text-sm md:text-lg font-black text-gray-900 leading-none truncate">{group.displayName}</h4>
                           {group.familyName && (
-                            <p className="text-[9px] font-black text-purple-600 uppercase tracking-widest mt-1">
+                            <p className="text-[8px] md:text-[9px] font-black text-purple-600 uppercase tracking-widest mt-1">
                               👨‍👩‍👧‍👦 Família {group.familyName}
                             </p>
                           )}
                         </div>
-                        <div className="flex gap-2 flex-wrap">
+                        <div className="flex gap-1 md:gap-2 flex-wrap">
                           {group.members.map((member: Member) => (
                             <span 
                               key={member.id} 
@@ -1034,7 +1038,7 @@ const MyTeamView: React.FC<MyTeamViewProps> = ({ teamId, userId, userRole }) => 
 
                     {/* LINHA DO TEMPO JAN-DEZ */}
                     <div className="flex-1 overflow-x-auto no-scrollbar">
-                      <div className="flex items-center gap-2 min-w-[400px]">
+                      <div className="flex items-center gap-1 md:gap-2 min-w-[400px]">
                         {group.monthsStatus.map((isPaid: boolean, mIdx: number) => {
                           const monthNum = mIdx + 1;
                           const isFuture = monthNum > viewMonth;
@@ -1047,7 +1051,7 @@ const MyTeamView: React.FC<MyTeamViewProps> = ({ teamId, userId, userRole }) => 
 
                           return (
                             <div key={mIdx} className="flex flex-col items-center gap-1 flex-1">
-                              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-[8px] font-black uppercase transition-all shadow-sm ${bgColor} ${textColor}`}>
+                              <div className={`w-6 h-6 md:w-8 md:h-8 rounded-full flex items-center justify-center text-[7px] md:text-[8px] font-black uppercase transition-all shadow-sm ${bgColor} ${textColor}`}>
                                 {shortMonths[mIdx]}
                               </div>
                               <div className={`w-1 h-1 rounded-full ${isPaid ? 'bg-emerald-400' : isFuture ? 'bg-gray-200' : 'bg-red-400 animate-pulse'}`}></div>
@@ -1057,7 +1061,7 @@ const MyTeamView: React.FC<MyTeamViewProps> = ({ teamId, userId, userRole }) => 
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-2 md:gap-4">
                       <button 
                         onClick={() => {
                           setPaymentForm({ ...paymentForm, year: viewYear, months: [viewMonth], amountPerMonth: group.amountPerPerson, observation: '' });
@@ -1069,9 +1073,9 @@ const MyTeamView: React.FC<MyTeamViewProps> = ({ teamId, userId, userRole }) => 
                           });
                           setShowPayModal(true);
                         }}
-                        className="px-8 py-4 bg-blue-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl shadow-blue-100 hover:bg-blue-700 transition-all active:scale-95 flex items-center gap-2"
+                        className="w-full sm:w-auto px-4 md:px-8 py-3 md:py-4 bg-blue-600 text-white rounded-xl md:rounded-2xl font-black text-[9px] md:text-[10px] uppercase tracking-widest shadow-xl shadow-blue-100 hover:bg-blue-700 transition-all active:scale-95 flex items-center justify-center gap-2"
                       >
-                        <Plus className="w-4 h-4" /> Lançar Pagamento
+                        <Plus className="w-3 h-3 md:w-4 md:h-4" /> <span className="hidden xs:inline">Lançar Pagamento</span><span className="xs:hidden">Lançar</span>
                       </button>
                     </div>
                   </div>
@@ -1082,35 +1086,35 @@ const MyTeamView: React.FC<MyTeamViewProps> = ({ teamId, userId, userRole }) => 
       )}
 
       {activeTab === 'eventos' && (
-        <div className="space-y-8 animate-in slide-in-from-right-4 duration-500">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="space-y-4 md:space-y-8 animate-in slide-in-from-right-4 duration-500">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-6">
             {events.map(event => {
                const teamQuota = event.teamQuotas.find(q => q.teamId === teamId);
                const teamSales = localSales.filter(s => s.eventId === event.id).reduce((acc, s) => acc + s.amount, 0);
                const progress = teamQuota ? (teamSales / teamQuota.quotaValue) * 100 : 0;
 
                return (
-                 <div key={event.id} className="bg-white p-8 rounded-[3rem] border border-gray-100 shadow-sm space-y-6">
+                 <div key={event.id} className="bg-white p-4 md:p-8 rounded-2xl md:rounded-[3rem] border border-gray-100 shadow-sm space-y-4 md:space-y-6">
                     <div className="flex items-center justify-between">
-                       <div className="flex items-center gap-4">
-                          <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center">
-                             <Ticket className="w-6 h-6" />
+                       <div className="flex items-center gap-2 md:gap-4 min-w-0 flex-1">
+                          <div className="w-10 h-10 md:w-12 md:h-12 bg-blue-50 text-blue-600 rounded-xl md:rounded-2xl flex items-center justify-center flex-shrink-0">
+                             <Ticket className="w-5 h-5 md:w-6 md:h-6" />
                           </div>
-                          <div>
-                             <h3 className="text-lg font-black text-gray-900 leading-tight">{event.name}</h3>
-                             <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest">Meta da nossa equipe</p>
+                          <div className="min-w-0 flex-1">
+                             <h3 className="text-sm md:text-lg font-black text-gray-900 leading-tight truncate">{event.name}</h3>
+                             <p className="text-[9px] md:text-[10px] text-gray-400 font-black uppercase tracking-widest">Meta da nossa equipe</p>
                           </div>
                        </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
-                       <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100">
-                          <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Cota Equipe</p>
-                          <p className="text-xl font-black text-gray-900">R$ {teamQuota?.quotaValue.toFixed(2)}</p>
+                    <div className="grid grid-cols-2 gap-2 md:gap-4">
+                       <div className="p-3 md:p-4 bg-gray-50 rounded-xl md:rounded-2xl border border-gray-100">
+                          <p className="text-[8px] md:text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Cota Equipe</p>
+                          <p className="text-base md:text-xl font-black text-gray-900">R$ {teamQuota?.quotaValue.toFixed(2)}</p>
                        </div>
-                       <div className="p-4 bg-blue-50 rounded-2xl border border-blue-100">
-                          <p className="text-[9px] font-black text-blue-400 uppercase tracking-widest mb-1">já Vendido</p>
-                          <p className="text-xl font-black text-blue-700">R$ {teamSales.toFixed(2)}</p>
+                       <div className="p-3 md:p-4 bg-blue-50 rounded-xl md:rounded-2xl border border-blue-100">
+                          <p className="text-[8px] md:text-[9px] font-black text-blue-400 uppercase tracking-widest mb-1">já Vendido</p>
+                          <p className="text-base md:text-xl font-black text-blue-700">R$ {teamSales.toFixed(2)}</p>
                        </div>
                     </div>
 
