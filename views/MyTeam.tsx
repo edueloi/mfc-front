@@ -57,7 +57,7 @@ const MyTeamView: React.FC<MyTeamViewProps> = ({ teamId, userId, userRole }) => 
   const [showPayModal, setShowPayModal] = useState(false);
   const [showFamilyModal, setShowFamilyModal] = useState(false);
   const [expandedFamily, setExpandedFamily] = useState<string | null>(null);
-  const [editingFamily, setEditingFamily] = useState<{name: string, memberIds: string[]} | null>(null);
+  const [editingFamily, setEditingFamily] = useState<{name: string, memberIds: string[], relationships: {[memberId: string]: string}} | null>(null);
   const [defaultMonthlyAmount, setDefaultMonthlyAmount] = useState(50.00);
   
   // Zé, inicia sempre em 2026
@@ -301,7 +301,7 @@ const MyTeamView: React.FC<MyTeamViewProps> = ({ teamId, userId, userRole }) => 
   }, [membersState]);
 
   const handleCreateFamily = () => {
-    setEditingFamily({ name: '', memberIds: [] });
+    setEditingFamily({ name: '', memberIds: [], relationships: {} });
     setShowFamilyModal(true);
   };
 
@@ -320,7 +320,7 @@ const MyTeamView: React.FC<MyTeamViewProps> = ({ teamId, userId, userRole }) => 
         return api.updateMember(memberId, {
           ...member,
           familyName: editingFamily.name,
-          relationshipType: index === 0 ? 'Titular' : (index === 1 && membersState.find(m => m.id === editingFamily.memberIds[0])?.maritalStatus?.includes('Casado') ? 'Cônjuge' : 'Outro'),
+          relationshipType: editingFamily.relationships[memberId] || (index === 0 ? 'Titular' : 'Outro'),
           paysMonthly: true
         });
       });
@@ -451,7 +451,7 @@ const MyTeamView: React.FC<MyTeamViewProps> = ({ teamId, userId, userRole }) => 
             </div>
           </div>
           <div className="overflow-x-auto -mx-4 md:mx-0 px-4 md:px-0 scrollbar-hide">
-            <div className="flex bg-gray-50 p-1.5 md:p-2 rounded-xl md:rounded-2xl border border-gray-100 gap-1 min-w-max md:min-w-0">
+            <div className="flex flex-row flex-nowrap content-center justify-center bg-gray-50 p-1.5 md:p-2 rounded-xl md:rounded-2xl border border-gray-100 gap-1 min-w-max md:min-w-0">
             {[
               { id: 'familias', label: 'Famílias', icon: Heart },
               { id: 'membros', label: 'Membros', icon: Users },
@@ -701,9 +701,14 @@ const MyTeamView: React.FC<MyTeamViewProps> = ({ teamId, userId, userRole }) => 
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
+                              const relationships: {[key: string]: string} = {};
+                              group.members.forEach((m: Member) => {
+                                relationships[m.id] = m.relationshipType || 'Outro';
+                              });
                               setEditingFamily({
                                 name: group.familyName || '',
-                                memberIds: group.members.map((m: Member) => m.id)
+                                memberIds: group.members.map((m: Member) => m.id),
+                                relationships
                               });
                               setShowFamilyModal(true);
                             }}
@@ -1353,43 +1358,104 @@ const MyTeamView: React.FC<MyTeamViewProps> = ({ teamId, userId, userRole }) => 
                     <p className="text-xs text-amber-600 mt-1">Edite os membros existentes para removê-los de suas famílias atuais</p>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-80 overflow-y-auto p-1">
-                    {availableMembers.map(member => {
-                      const isSelected = editingFamily?.memberIds.includes(member.id);
-                      return (
-                        <div
-                          key={member.id}
-                          onClick={() => {
-                            setEditingFamily(prev => {
-                              if (!prev) return {name: '', memberIds: [member.id]};
-                              const newIds = isSelected 
-                                ? prev.memberIds.filter(id => id !== member.id)
-                                : [...prev.memberIds, member.id];
-                              return {...prev, memberIds: newIds};
-                            });
-                          }}
-                          className={`p-4 rounded-2xl border-2 cursor-pointer transition-all flex items-center gap-4 ${
-                            isSelected 
-                              ? 'bg-purple-50 border-purple-400 shadow-lg' 
-                              : 'bg-white border-gray-200 hover:border-purple-200 hover:shadow-md'
-                          }`}
-                        >
-                          <div className={`w-12 h-12 rounded-xl flex items-center justify-center font-black text-lg transition-all ${
-                            isSelected 
-                              ? 'bg-purple-500 text-white' 
-                              : 'bg-gray-100 text-gray-600'
-                          }`}>
-                            {isSelected ? <Check className="w-6 h-6" /> : member.name.substring(0, 1)}
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-80 overflow-y-auto p-1">
+                      {availableMembers.map(member => {
+                        const isSelected = editingFamily?.memberIds.includes(member.id);
+                        return (
+                          <div
+                            key={member.id}
+                            onClick={() => {
+                              setEditingFamily(prev => {
+                                if (!prev) return {name: '', memberIds: [member.id], relationships: {[member.id]: 'Titular'}};
+                                const newIds = isSelected 
+                                  ? prev.memberIds.filter(id => id !== member.id)
+                                  : [...prev.memberIds, member.id];
+                                const newRelationships = {...prev.relationships};
+                                if (isSelected) {
+                                  delete newRelationships[member.id];
+                                } else {
+                                  newRelationships[member.id] = newIds.length === 1 ? 'Titular' : 'Outro';
+                                }
+                                return {...prev, memberIds: newIds, relationships: newRelationships};
+                              });
+                            }}
+                            className={`p-4 rounded-2xl border-2 cursor-pointer transition-all flex items-center gap-4 ${
+                              isSelected 
+                                ? 'bg-purple-50 border-purple-400 shadow-lg' 
+                                : 'bg-white border-gray-200 hover:border-purple-200 hover:shadow-md'
+                            }`}
+                          >
+                            <div className={`w-12 h-12 rounded-xl flex items-center justify-center font-black text-lg transition-all ${
+                              isSelected 
+                                ? 'bg-purple-500 text-white' 
+                                : 'bg-gray-100 text-gray-600'
+                            }`}>
+                              {isSelected ? <Check className="w-6 h-6" /> : member.name.substring(0, 1)}
+                            </div>
+                            <div className="flex-1">
+                              <p className="font-bold text-gray-900">{member.name}</p>
+                              <p className="text-xs text-gray-500 font-semibold mt-1">
+                                {member.maritalStatus} • {member.gender}
+                              </p>
+                            </div>
                           </div>
-                          <div className="flex-1">
-                            <p className="font-bold text-gray-900">{member.name}</p>
-                            <p className="text-xs text-gray-500 font-semibold mt-1">
-                              {member.maritalStatus} • {member.gender}
-                            </p>
-                          </div>
+                        );
+                      })}
+                    </div>
+                    
+                    {/* Relacionamentos dos membros selecionados */}
+                    {editingFamily?.memberIds && editingFamily.memberIds.length > 0 && (
+                      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-2xl p-5">
+                        <h4 className="text-sm font-black text-blue-900 mb-4 flex items-center gap-2">
+                          <Users className="w-4 h-4" />
+                          Definir Vínculos Familiares
+                        </h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          {editingFamily.memberIds.map(memberId => {
+                            const member = membersState.find(m => m.id === memberId);
+                            if (!member) return null;
+                            return (
+                              <div key={memberId} className="bg-white rounded-xl p-3 border border-blue-100">
+                                <label className="block text-xs font-bold text-gray-600 mb-2">
+                                  {member.name.split(' ')[0]}
+                                </label>
+                                <select
+                                  value={editingFamily.relationships[memberId] || 'Outro'}
+                                  onChange={(e) => {
+                                    setEditingFamily(prev => {
+                                      if (!prev) return prev;
+                                      return {
+                                        ...prev,
+                                        relationships: {
+                                          ...prev.relationships,
+                                          [memberId]: e.target.value
+                                        }
+                                      };
+                                    });
+                                  }}
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="w-full bg-gray-50 border-2 border-gray-200 rounded-lg px-3 py-2 text-sm font-semibold text-gray-800 focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition-all outline-none"
+                                >
+                                  <option value="Titular">Titular</option>
+                                  <option value="Cônjuge">Cônjuge</option>
+                                  <option value="Filho(a)">Filho(a)</option>
+                                  <option value="Irmão/Irmã">Irmão/Irmã</option>
+                                  <option value="Neto(a)">Neto(a)</option>
+                                  <option value="Amigo(a)">Amigo(a)</option>
+                                  <option value="Primo(a)">Primo(a)</option>
+                                  <option value="Tio/Tia">Tio/Tia</option>
+                                  <option value="Sobrinho(a)">Sobrinho(a)</option>
+                                  <option value="Avô/Avó">Avô/Avó</option>
+                                  <option value="Sogro(a)">Sogro(a)</option>
+                                  <option value="Outro">Outro</option>
+                                </select>
+                              </div>
+                            );
+                          })}
                         </div>
-                      );
-                    })}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -1397,9 +1463,8 @@ const MyTeamView: React.FC<MyTeamViewProps> = ({ teamId, userId, userRole }) => 
               {/* Info Box */}
               <div className="bg-blue-50 border-2 border-blue-200 rounded-2xl p-5">
                 <p className="text-xs text-blue-800 font-semibold leading-relaxed">
-                  <strong>💡 Dica:</strong> O primeiro membro selecionado será o <strong>Titular</strong> da família. 
-                  Se houver um segundo membro casado, será definido como <strong>Cônjuge</strong>. 
-                  Você pode ajustar os tipos de relacionamento depois editando cada membro individualmente.
+                  <strong>💡 Dica:</strong> Selecione os membros da família e defina o vínculo de cada um (Titular, Cônjuge, Filho(a), etc). 
+                  O vínculo ajuda a organizar e identificar os membros dentro da família.
                 </p>
               </div>
             </div>

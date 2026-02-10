@@ -1114,44 +1114,6 @@ const Members: React.FC = () => {
 
               {activeTab === 'familia' && (
                 <div className="space-y-4 animate-in fade-in duration-300">
-                  {/* NOVA SEÇÃO: SISTEMA DE FAMÍLIAS */}
-                  <div className="bg-gradient-to-r from-purple-50 to-pink-50 border-2 border-purple-200 rounded-2xl p-4">
-                    <h4 className="text-sm font-black text-purple-900 mb-3 flex items-center gap-2">
-                      <Users className="w-4 h-4" />
-                      Sistema de Famílias MFC
-                    </h4>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                      <InputField 
-                        label="Nome da Família" 
-                        field="familyName" 
-                        placeholder="Ex: Silva, Santos, Oliveira"
-                        value={formData.familyName} 
-                        onChange={(e: any) => updateFormData('familyName', e.target.value)} 
-                      />
-                      <SelectField 
-                        label="Tipo de Vínculo" 
-                        field="relationshipType" 
-                        options={['Titular', 'Cônjuge', 'Filho(a)', 'Pai/Mãe', 'Outro']} 
-                        value={formData.relationshipType} 
-                        onChange={(e: any) => updateFormData('relationshipType', e.target.value)} 
-                      />
-                      <CheckboxField 
-                        label="Paga Mensalidade" 
-                        field="paysMonthly" 
-                        checked={formData.paysMonthly} 
-                        onChange={(e: any) => updateFormData('paysMonthly', e.target.checked)} 
-                      />
-                    </div>
-                    <div className="mt-3 bg-white rounded-xl p-3 border border-purple-200">
-                      <p className="text-xs text-purple-800 font-semibold">
-                        💡 <strong>Como funciona:</strong> Membros com o mesmo "Nome da Família" serão agrupados. 
-                        Se houver casal (Titular + Cônjuge), o valor da mensalidade é dividido por 2. 
-                        Filhos geralmente não pagam (desmarque "Paga Mensalidade").
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* SEÇÃO TRADICIONAL */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <SelectField label="Estado Civil" field="maritalStatus" options={['Casado(a)', 'Solteiro(a)', 'Divorciado(a)', 'Viuvo(a)']} className="sm:col-span-2" value={formData.maritalStatus} onChange={(e: any) => updateFormData('maritalStatus', e.target.value)} />
                     <InputField label="Conjuge" field="spouseName" className="sm:col-span-2" value={formData.spouseName} onChange={(e: any) => updateFormData('spouseName', e.target.value)} />
