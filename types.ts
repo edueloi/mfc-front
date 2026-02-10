@@ -142,6 +142,9 @@ export interface Member {
   education: string;
   photoUrl?: string;
   movementRoles: string[];
+  familyName?: string;
+  relationshipType?: string;
+  paysMonthly?: boolean;
   createdAt: string;
   updatedAt: string;
   isPaymentInactive?: boolean;

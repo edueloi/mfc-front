@@ -1,6 +1,7 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import { 
   Users, 
   DollarSign, 
@@ -23,7 +24,13 @@ import {
   ShoppingCart,
   Receipt,
   Check,
-  Settings as SettingsIcon
+  Settings as SettingsIcon,
+  UserPlus,
+  Edit,
+  Briefcase,
+  Cake,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 import { 
   BarChart, 
@@ -46,15 +53,18 @@ interface MyTeamViewProps {
 
 const MyTeamView: React.FC<MyTeamViewProps> = ({ teamId, userId, userRole }) => {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<'membros' | 'mensalidades' | 'eventos' | 'historico'>('membros');
+  const [activeTab, setActiveTab] = useState<'membros' | 'familias' | 'mensalidades' | 'eventos' | 'historico'>('familias');
   const [showPayModal, setShowPayModal] = useState(false);
+  const [showFamilyModal, setShowFamilyModal] = useState(false);
+  const [expandedFamily, setExpandedFamily] = useState<string | null>(null);
+  const [editingFamily, setEditingFamily] = useState<{name: string, memberIds: string[]} | null>(null);
   const [defaultMonthlyAmount, setDefaultMonthlyAmount] = useState(50.00);
   
   // Zé, inicia sempre em 2026
   const [viewYear, setViewYear] = useState(2026);
   const [viewMonth, setViewMonth] = useState(new Date().getMonth() + 1);
   
-  const [selectedForPayment, setSelectedForPayment] = useState<{memberIds: string[], displayName: string} | null>(null);
+  const [selectedForPayment, setSelectedForPayment] = useState<{memberIds: string[], displayName: string, amountPerPerson: number, payingMembers: Member[]} | null>(null);
   const [paymentForm, setPaymentForm] = useState({
     months: [] as number[], // Agora aceita vários meses
     year: 2026,
@@ -132,49 +142,99 @@ const MyTeamView: React.FC<MyTeamViewProps> = ({ teamId, userId, userRole }) => 
     const monthlyTotal = localPayments.filter(p => p.referenceMonth === currentRef).reduce((acc, p) => acc + p.amount, 0);
     const yearlyTotal = localPayments.filter(p => p.referenceMonth.endsWith(`/${viewYear}`)).reduce((acc, p) => acc + p.amount, 0);
 
+    // Calcular pendências considerando sistema de famílias
     let pendingAmount = 0;
-    membersState.forEach(m => {
-       for(let mIdx = 1; mIdx <= viewMonth; mIdx++) {
-          if(!localPayments.some(p => p.memberId === m.id && p.referenceMonth === `${mIdx}/${viewYear}`)) pendingAmount += defaultMonthlyAmount;
-       }
+    const payingMembers = membersState.filter(m => m.paysMonthly !== false);
+    
+    payingMembers.forEach(m => {
+      // Verifica se o membro está em um casal (para dividir o valor)
+      const isInCouple = payingMembers.some(other => 
+        other.id !== m.id && 
+        other.familyName === m.familyName && 
+        other.familyName && 
+        ((m.relationshipType === 'Titular' && other.relationshipType === 'Cônjuge') ||
+         (m.relationshipType === 'Cônjuge' && other.relationshipType === 'Titular'))
+      );
+      
+      const amountPerMonth = isInCouple ? defaultMonthlyAmount / 2 : defaultMonthlyAmount;
+      
+      for(let mIdx = 1; mIdx <= viewMonth; mIdx++) {
+        if(!localPayments.some(p => p.memberId === m.id && p.referenceMonth === `${mIdx}/${viewYear}`)) {
+          pendingAmount += amountPerMonth;
+        }
+      }
     });
 
     return { monthlyTotal, yearlyTotal, pendingAmount };
-  }, [localPayments, viewMonth, viewYear, membersState]);
+  }, [localPayments, viewMonth, viewYear, membersState, defaultMonthlyAmount]);
 
-  // Agrupamento de Casais com Status de Jan a Dez
+  // Agrupamento por FAMÍLIAS (novo sistema)
   const groupedMembers = useMemo(() => {
-    const processed = new Set<string>();
+    const familyGroups = new Map<string, Member[]>();
+    
+    // Agrupar membros por family_name
+    membersState.forEach(member => {
+      const familyKey = member.familyName || `sem_familia_${member.id}`;
+      if (!familyGroups.has(familyKey)) {
+        familyGroups.set(familyKey, []);
+      }
+      familyGroups.get(familyKey)!.push(member);
+    });
+
     const groups: any[] = [];
 
-    membersState.forEach(member => {
-      if (processed.has(member.id)) return;
-      const spouse = membersState.find(m => m.id !== member.id && (m.name === member.spouseName || m.spouseName === member.name));
+    familyGroups.forEach((familyMembers, familyName) => {
+      // Ordenar: Titular primeiro, depois Cônjuge, depois outros
+      const sortedMembers = familyMembers.sort((a, b) => {
+        const order = { 'Titular': 1, 'Cônjuge': 2, 'Filho(a)': 3, 'Pai/Mãe': 4, 'Outro': 5 };
+        return (order[a.relationshipType || 'Titular'] || 5) - (order[b.relationshipType || 'Titular'] || 5);
+      });
 
-      const getStatusForMonth = (mId: string, month: number) => {
-        return localPayments.some(p => p.memberId === mId && p.referenceMonth === `${month}/${viewYear}`);
+      // Identificar quem paga
+      const payingMembers = sortedMembers.filter(m => m.paysMonthly !== false);
+      const titular = sortedMembers.find(m => m.relationshipType === 'Titular') || sortedMembers[0];
+      const spouse = sortedMembers.find(m => m.relationshipType === 'Cônjuge');
+      
+      // Calcular valor por pessoa (se tem casal pagante, divide por 2)
+      const isCouplePayment = payingMembers.length >= 2 && spouse && spouse.paysMonthly !== false;
+      const amountPerPerson = isCouplePayment ? defaultMonthlyAmount / 2 : defaultMonthlyAmount;
+
+      const getStatusForMonth = (member: Member, month: number) => {
+        if (member.paysMonthly === false) return true; // Quem não paga sempre está "ok"
+        return localPayments.some(p => p.memberId === member.id && p.referenceMonth === `${month}/${viewYear}`);
       };
 
+      // Status de cada mês (todos os pagantes precisam ter pago)
       const monthsStatus = Array.from({length: 12}, (_, i) => {
         const mIdx = i + 1;
-        const p1 = getStatusForMonth(member.id, mIdx);
-        const p2 = spouse ? getStatusForMonth(spouse.id, mIdx) : true;
-        return p1 && p2;
+        return payingMembers.every(m => getStatusForMonth(m, mIdx));
       });
 
       const atrasos = monthsStatus.slice(0, viewMonth).filter(s => !s).length;
 
+      // Nome para exibição
+      let displayName = familyName.startsWith('sem_familia_') 
+        ? titular.name 
+        : `Família ${familyName}`;
+      
       if (spouse) {
-        groups.push({ type: 'couple', members: [member, spouse], displayName: `${member.nickname || member.name.split(' ')[0]} & ${spouse.nickname || spouse.name.split(' ')[0]}`, monthsStatus, atrasos });
-        processed.add(member.id); processed.add(spouse.id);
-      } else {
-        groups.push({ type: 'single', members: [member], displayName: member.name, monthsStatus, atrasos });
-        processed.add(member.id);
+        displayName = `${titular.nickname || titular.name.split(' ')[0]} & ${spouse.nickname || spouse.name.split(' ')[0]}`;
       }
+
+      groups.push({ 
+        type: isCouplePayment ? 'couple' : 'single',
+        members: sortedMembers,
+        payingMembers,
+        displayName, 
+        monthsStatus, 
+        atrasos,
+        amountPerPerson,
+        familyName: familyName.startsWith('sem_familia_') ? null : familyName
+      });
     });
 
     return groups.sort((a, b) => b.atrasos - a.atrasos);
-  }, [membersState, localPayments, viewYear, viewMonth]);
+  }, [membersState, localPayments, viewYear, viewMonth, defaultMonthlyAmount]);
 
   const toggleMonthInForm = (mIdx: number) => {
     if (!selectedForPayment) return;
@@ -191,17 +251,73 @@ const MyTeamView: React.FC<MyTeamViewProps> = ({ teamId, userId, userRole }) => 
     }));
   };
 
+  // Funções de gerenciamento de famílias
+  const availableMembers = useMemo(() => {
+    return membersState.filter(m => !m.familyName || m.familyName === '');
+  }, [membersState]);
+
+  const handleCreateFamily = () => {
+    setEditingFamily({ name: '', memberIds: [] });
+    setShowFamilyModal(true);
+  };
+
+  const handleSaveFamily = async () => {
+    if (!editingFamily || !editingFamily.name || editingFamily.memberIds.length === 0) {
+      alert('Preencha o nome da família e selecione pelo menos 1 membro');
+      return;
+    }
+
+    try {
+      // Atualizar cada membro selecionado com o nome da família
+      const updates = editingFamily.memberIds.map((memberId, index) => {
+        const member = membersState.find(m => m.id === memberId);
+        if (!member) return Promise.resolve();
+        
+        return api.updateMember(memberId, {
+          ...member,
+          familyName: editingFamily.name,
+          relationshipType: index === 0 ? 'Titular' : (index === 1 && membersState.find(m => m.id === editingFamily.memberIds[0])?.maritalStatus?.includes('Casado') ? 'Cônjuge' : 'Outro'),
+          paysMonthly: true
+        });
+      });
+
+      await Promise.all(updates);
+      toast.success(`Família "${editingFamily.name}" criada com sucesso!`);
+      loadData();
+      setShowFamilyModal(false);
+      setEditingFamily(null);
+    } catch (error) {
+      toast.error('Erro ao criar família');
+      console.error(error);
+    }
+  };
+
+  const calculateAge = (dob: string) => {
+    if (!dob) return null;
+    const birthDate = new Date(dob);
+    const today = new Date();
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+      age--;
+    }
+    return age;
+  };
+
   const handleLaunchMultiPayment = () => {
     if (!selectedForPayment || paymentForm.months.length === 0) return;
 
     const newPayments: Payment[] = [];
-    selectedForPayment.memberIds.forEach(mId => {
+    // Apenas os membros que pagam recebem lançamentos
+    const payingMemberIds = selectedForPayment.payingMembers.map(m => m.id);
+    
+    payingMemberIds.forEach(mId => {
       paymentForm.months.forEach(mIdx => {
         newPayments.push({
           id: '',
           memberId: mId,
           teamId: teamId,
-          amount: paymentForm.amountPerMonth,
+          amount: selectedForPayment.amountPerPerson, // Usa o valor correto (dividido se for casal)
           date: new Date().toISOString().split('T')[0],
           referenceMonth: `${mIdx}/${paymentForm.year}`,
           status: 'Pago',
@@ -276,6 +392,7 @@ const MyTeamView: React.FC<MyTeamViewProps> = ({ teamId, userId, userRole }) => 
           </div>
           <div className="flex bg-gray-50 p-2 rounded-2xl border border-gray-100 flex-wrap gap-1">
             {[
+              { id: 'familias', label: 'Famílias', icon: Heart },
               { id: 'membros', label: 'Membros', icon: Users },
               { id: 'mensalidades', label: 'Mensalidades', icon: DollarSign },
               { id: 'eventos', label: 'Metas Equipe', icon: Ticket },
@@ -292,6 +409,348 @@ const MyTeamView: React.FC<MyTeamViewProps> = ({ teamId, userId, userRole }) => 
           </div>
         </div>
       </div>
+
+      {/* ABA FAMILIAS */}
+      {activeTab === 'familias' && (
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <h2 className="text-2xl font-black text-gray-900">Famílias da Equipe</h2>
+            {groupedMembers.length > 0 && (
+              <button
+                onClick={handleCreateFamily}
+                className="px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-2xl font-black text-sm uppercase tracking-wider shadow-xl hover:shadow-2xl transition-all active:scale-95 flex items-center gap-2"
+              >
+                <UserPlus className="w-5 h-5" />
+                Criar Nova Família
+              </button>
+            )}
+          </div>
+
+          {/* ESTADO VAZIO - SEM FAMÍLIAS */}
+          {groupedMembers.length === 0 && (
+            <div className="flex items-center justify-center min-h-[500px]">
+              <div className="text-center max-w-2xl px-8">
+                <div className="mb-8 relative">
+                  <div className="w-32 h-32 mx-auto bg-gradient-to-br from-purple-100 to-pink-100 rounded-full flex items-center justify-center animate-pulse">
+                    <Heart className="w-16 h-16 text-purple-400" />
+                  </div>
+                  <div className="absolute top-0 left-1/2 -translate-x-1/2 w-40 h-40 bg-purple-200 rounded-full blur-3xl opacity-20 animate-pulse"></div>
+                </div>
+                
+                <h3 className="text-3xl font-black text-gray-900 mb-4">
+                  👨‍👩‍👧‍👦 Nenhuma Família Criada
+                </h3>
+                
+                <p className="text-gray-600 mb-3 text-lg leading-relaxed">
+                  As famílias ajudam a organizar os membros da sua equipe por núcleo familiar.
+                </p>
+                
+                <p className="text-gray-500 text-sm mb-8 leading-relaxed">
+                  {availableMembers.length > 0 ? (
+                    <>
+                      Você tem <span className="font-black text-purple-600">{availableMembers.length} membro(s)</span> disponível(is) para criar sua primeira família!
+                      <br />
+                      <span className="text-xs text-gray-400 mt-2 block">
+                        Vincule membros do mesmo núcleo familiar (esposos, filhos) para facilitar o controle de mensalidades e eventos.
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      Todos os membros da equipe já estão vinculados a famílias.
+                      <br />
+                      <span className="text-xs text-gray-400 mt-2 block">
+                        Cadastre novos membros para criar mais famílias.
+                      </span>
+                    </>
+                  )}
+                </p>
+
+                {availableMembers.length > 0 && (
+                  <button
+                    onClick={handleCreateFamily}
+                    className="px-8 py-4 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-2xl font-black text-base uppercase tracking-wider shadow-2xl hover:shadow-3xl hover:scale-105 transition-all active:scale-95 flex items-center gap-3 mx-auto"
+                  >
+                    <UserPlus className="w-6 h-6" />
+                    Criar Primeira Família
+                  </button>
+                )}
+
+                {availableMembers.length === 0 && (
+                  <button
+                    onClick={() => navigate('/mfcistas')}
+                    className="px-8 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-2xl font-black text-base uppercase tracking-wider shadow-2xl hover:shadow-3xl hover:scale-105 transition-all active:scale-95 flex items-center gap-3 mx-auto"
+                  >
+                    <Users className="w-6 h-6" />
+                    Cadastrar Novos Membros
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* LISTA DE FAMÍLIAS */}
+          {groupedMembers.length > 0 && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {groupedMembers.map((group, idx) => {
+              const progressPercent = Math.round((group.monthsStatus.filter((s: boolean) => s).length / viewMonth) * 100);
+              const isLate = group.atrasos > 0;
+              const isExpanded = expandedFamily === group.familyName || expandedFamily === `group_${idx}`;
+              const familyKey = group.familyName || `group_${idx}`;
+
+              return (
+                <div
+                  key={idx}
+                  className={`bg-white rounded-[2.5rem] p-8 border-2 transition-all ${
+                    isLate ? 'border-red-100 hover:border-red-300' : 'border-emerald-100 hover:border-emerald-300'
+                  } ${isExpanded ? 'shadow-2xl' : 'hover:shadow-2xl'}`}
+                >
+                  {/* HEADER DA FAMÍLIA - CLICÁVEL */}
+                  <div onClick={() => setExpandedFamily(isExpanded ? null : familyKey)} className="cursor-pointer">
+                    <div className="flex items-start justify-between mb-6">
+                      <div className="flex items-center gap-4">
+                        <div className={`w-16 h-16 rounded-2xl flex items-center justify-center transition-all ${
+                          isLate ? 'bg-red-50 text-red-500' : 'bg-emerald-50 text-emerald-600'
+                        }`}>
+                          {group.type === 'couple' ? <Heart className="w-8 h-8" /> : <Users className="w-8 h-8" />}
+                        </div>
+                        <div>
+                          <h3 className="text-xl font-black text-gray-900 leading-none mb-2">{group.displayName}</h3>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            {group.familyName && !group.familyName.startsWith('sem_familia_') && (
+                              <span className="text-xs font-black text-purple-600 bg-purple-50 px-3 py-1 rounded-full">
+                                👨‍👩‍👧‍👦 Família {group.familyName}
+                              </span>
+                            )}
+                            <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">
+                              {group.members.length} {group.members.length === 1 ? 'membro' : 'membros'}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="text-right flex items-center gap-3">
+                        <div>
+                          <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Progresso {viewYear}</p>
+                          <p className={`text-3xl font-black ${
+                            progressPercent === 100 ? 'text-emerald-600' : progressPercent >= 75 ? 'text-blue-600' : progressPercent >= 50 ? 'text-amber-600' : 'text-red-600'
+                          }`}>{progressPercent}%</p>
+                        </div>
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${
+                          isExpanded ? 'bg-purple-100 text-purple-600' : 'bg-gray-100 text-gray-400'
+                        }`}>
+                          {isExpanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* MEMBROS DA FAMÍLIA - VERSÃO RESUMIDA */}
+                  {!isExpanded && (
+                  <div className="bg-gray-50 rounded-2xl p-6 mb-6 space-y-3">
+                    <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-3">Membros da Família</p>
+                    {group.members.map((member: Member) => (
+                      <div key={member.id} className="flex items-center justify-between bg-white rounded-xl p-3 hover:shadow-md transition-all">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-purple-500 text-white flex items-center justify-center font-black text-sm">
+                            {member.name.substring(0, 1)}
+                          </div>
+                          <div>
+                            <p className="text-sm font-bold text-gray-900">{member.nickname || member.name.split(' ')[0]}</p>
+                            <p className="text-[8px] font-bold text-gray-400 uppercase tracking-wider">
+                              {member.relationshipType || 'Titular'}
+                            </p>
+                          </div>
+                        </div>
+                        <div>
+                          {member.paysMonthly === false ? (
+                            <span className="text-[8px] font-black px-3 py-1 rounded-full bg-gray-100 text-gray-500">Isento</span>
+                          ) : (
+                            <span className="text-[8px] font-black px-3 py-1 rounded-full bg-blue-100 text-blue-700">
+                              R$ {group.amountPerPerson.toFixed(2)}/mês
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  )}
+
+                  {/* CONTEÚDO EXPANDIDO - DETALHES COMPLETOS */}
+                  {isExpanded && (
+                    <div className="mt-6 pt-6 border-t-2 border-gray-100 animate-in slide-in-from-top duration-300">
+                      <div className="mb-4 flex items-center justify-between">
+                        <h4 className="text-sm font-black text-gray-700 uppercase tracking-wider">📋 Informações Detalhadas</h4>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setEditingFamily({
+                              name: group.familyName || '',
+                              memberIds: group.members.map((m: Member) => m.id)
+                            });
+                            setShowFamilyModal(true);
+                          }}
+                          className="px-3 py-1.5 bg-purple-100 text-purple-700 rounded-xl text-xs font-bold hover:bg-purple-200 transition-all flex items-center gap-1"
+                        >
+                          <Edit className="w-3 h-3" />
+                          Editar Família
+                        </button>
+                      </div>
+                      
+                      <div className="grid grid-cols-1 gap-4 mb-6">
+                        {group.members.map((member: Member) => {
+                          const age = calculateAge(member.dob || '');
+                          const maritalStatusText = {
+                            'Solteiro(a)': '💙 Solteiro(a)',
+                            'Casado(a)': '💍 Casado(a)',
+                            'Divorciado(a)': '📋 Divorciado(a)',
+                            'Viúvo(a)': '🕊️ Viúvo(a)'
+                          }[member.maritalStatus || ''] || '❓ Não informado';
+
+                          return (
+                            <div 
+                              key={member.id} 
+                              className="bg-gradient-to-br from-white to-gray-50 rounded-2xl p-5 border-2 border-gray-100 hover:border-purple-200 transition-all hover:shadow-lg cursor-pointer"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigate(`/mfcistas/${member.id}`);
+                              }}
+                            >
+                              <div className="flex items-start gap-4">
+                                {/* Avatar Grande */}
+                                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 text-white flex items-center justify-center font-black text-2xl shadow-lg flex-shrink-0">
+                                  {member.name.substring(0, 1)}
+                                </div>
+                                
+                                {/* Informações Principais */}
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center justify-between mb-3">
+                                    <div>
+                                      <h5 className="text-lg font-black text-gray-900 leading-none mb-1">
+                                        {member.name}
+                                      </h5>
+                                      <div className="flex items-center gap-2 flex-wrap">
+                                        <span className="text-xs font-bold px-2 py-1 rounded-lg bg-purple-100 text-purple-700">
+                                          {member.relationshipType || 'Titular'}
+                                        </span>
+                                        {member.nickname && (
+                                          <span className="text-xs text-gray-500">
+                                            "{member.nickname}"
+                                          </span>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
+                                  
+                                  {/* Grid de Informações Compacto */}
+                                  <div className="grid grid-cols-2 gap-2 text-xs">
+                                    {age !== null && (
+                                      <div className="flex items-center gap-2">
+                                        <Cake className="w-3.5 h-3.5 text-pink-500 flex-shrink-0" />
+                                        <span className="font-bold text-gray-700">{age} anos</span>
+                                      </div>
+                                    )}
+                                    
+                                    {member.profession && (
+                                      <div className="flex items-center gap-2">
+                                        <Briefcase className="w-3.5 h-3.5 text-blue-500 flex-shrink-0" />
+                                        <span className="font-bold text-gray-700 truncate">{member.profession}</span>
+                                      </div>
+                                    )}
+                                    
+                                    <div className="flex items-center gap-2 col-span-2">
+                                      <span className="text-base flex-shrink-0">💕</span>
+                                      <span className="font-bold text-gray-700 truncate text-xs">{maritalStatusText}</span>
+                                    </div>
+                                    
+                                    {member.paysMonthly === false ? (
+                                      <div className="col-span-2 flex items-center gap-2 bg-gray-50 rounded-lg px-2 py-1">
+                                        <span>🎓</span>
+                                        <span className="font-black text-gray-600 text-xs">Isento de Pagamento</span>
+                                      </div>
+                                    ) : (
+                                      <div className="col-span-2 flex items-center gap-2 bg-emerald-50 rounded-lg px-2 py-1">
+                                        <span>💳</span>
+                                        <span className="font-black text-emerald-700 text-xs">R$ {group.amountPerPerson.toFixed(2)}/mês</span>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* BARRA DE PROGRESSO MENSAL */}
+                  <div className="mb-6">
+                    <div className="flex items-center justify-between mb-3">
+                      <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Pagamentos por Mês</p>
+                      <p className="text-[9px] font-black text-gray-600">
+                        {group.monthsStatus.slice(0, viewMonth).filter((s: boolean) => s).length}/{viewMonth} meses
+                      </p>
+                    </div>
+                    <div className="grid grid-cols-12 gap-1">
+                      {group.monthsStatus.map((isPaid: boolean, mIdx: number) => {
+                        const monthNum = mIdx + 1;
+                        const isFuture = monthNum > viewMonth;
+                        
+                        let bgColor = 'bg-gray-100';
+                        if (isPaid) bgColor = 'bg-emerald-400';
+                        else if (!isFuture) bgColor = 'bg-red-400';
+                        
+                        return (
+                          <div key={mIdx} className="relative group/month">
+                            <div className={`h-8 rounded-lg ${bgColor} transition-all hover:scale-110 cursor-pointer`}></div>
+                            <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-[8px] font-bold px-2 py-1 rounded opacity-0 group-hover/month:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-10">
+                              {['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'][mIdx]} {viewYear}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* ESTATÍSTICAS E AÇÕES */}
+                  <div className="flex items-center justify-between pt-6 border-t-2 border-gray-100">
+                    <div className="flex gap-6">
+                      <div>
+                        <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1">Valor Mensal</p>
+                        <p className="text-lg font-black text-blue-600">
+                          R$ {(group.amountPerPerson * group.payingMembers.length).toFixed(2)}
+                        </p>
+                      </div>
+                      {isLate && (
+                        <div>
+                          <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1">Pendências</p>
+                          <p className="text-lg font-black text-red-600">{group.atrasos} {group.atrasos === 1 ? 'mês' : 'meses'}</p>
+                        </div>
+                      )}
+                    </div>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setPaymentForm({ ...paymentForm, year: viewYear, months: [viewMonth], amountPerMonth: group.amountPerPerson, observation: '' });
+                        setSelectedForPayment({
+                          memberIds: group.members.map((m: Member) => m.id),
+                          displayName: group.displayName,
+                          amountPerPerson: group.amountPerPerson,
+                          payingMembers: group.payingMembers
+                        });
+                        setShowPayModal(true);
+                      }}
+                      className="px-6 py-3 bg-blue-600 text-white rounded-2xl font-black text-xs uppercase tracking-wider shadow-lg hover:bg-blue-700 transition-all active:scale-95 flex items-center gap-2"
+                    >
+                      <Plus className="w-4 h-4" /> Lançar
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          )}
+        </div>
+      )}
 
       {activeTab === 'membros' && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -353,7 +812,23 @@ const MyTeamView: React.FC<MyTeamViewProps> = ({ teamId, userId, userRole }) => 
                     <BarChart3 className="w-5 h-5 text-blue-600" />
                     <div className="text-right">
                         <p className="text-[9px] font-black text-blue-400 uppercase tracking-widest leading-none">Esperado no mês</p>
-                        <p className="text-lg font-black text-blue-700">R$ {(membersState.length * defaultMonthlyAmount).toFixed(2)}</p>
+                        <p className="text-lg font-black text-blue-700">
+                          R$ {(() => {
+                            const payingMembers = membersState.filter(m => m.paysMonthly !== false);
+                            let total = 0;
+                            payingMembers.forEach(m => {
+                              const isInCouple = payingMembers.some(other => 
+                                other.id !== m.id && 
+                                other.familyName === m.familyName && 
+                                other.familyName && 
+                                ((m.relationshipType === 'Titular' && other.relationshipType === 'Cônjuge') ||
+                                 (m.relationshipType === 'Cônjuge' && other.relationshipType === 'Titular'))
+                              );
+                              total += isInCouple ? defaultMonthlyAmount / 2 : defaultMonthlyAmount;
+                            });
+                            return total.toFixed(2);
+                          })()}
+                        </p>
                     </div>
                 </div>
              </div>
@@ -395,10 +870,38 @@ const MyTeamView: React.FC<MyTeamViewProps> = ({ teamId, userId, userRole }) => 
                       <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all ${group.atrasos === 0 ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-500'}`}>
                         {group.type === 'couple' ? <Heart className="w-7 h-7" /> : <Users className="w-7 h-7" />}
                       </div>
-                      <div className="space-y-1">
-                        <h4 className="text-lg font-black text-gray-900 leading-none">{group.displayName}</h4>
+                      <div className="space-y-2">
+                        <div>
+                          <h4 className="text-lg font-black text-gray-900 leading-none">{group.displayName}</h4>
+                          {group.familyName && (
+                            <p className="text-[9px] font-black text-purple-600 uppercase tracking-widest mt-1">
+                              👨‍👩‍👧‍👦 Família {group.familyName}
+                            </p>
+                          )}
+                        </div>
+                        <div className="flex gap-2 flex-wrap">
+                          {group.members.map((member: Member) => (
+                            <span 
+                              key={member.id} 
+                              className={`text-[8px] font-bold px-2 py-1 rounded-lg ${
+                                member.paysMonthly === false 
+                                  ? 'bg-gray-100 text-gray-500' 
+                                  : 'bg-blue-100 text-blue-700'
+                              }`}
+                            >
+                              {member.nickname || member.name.split(' ')[0]} 
+                              {member.relationshipType && member.relationshipType !== 'Titular' && ` (${member.relationshipType})`}
+                              {member.paysMonthly === false && ' - Isento'}
+                            </span>
+                          ))}
+                        </div>
                         <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">
-                          {group.atrasos === 0 ? 'Em dia com a tesouraria' : `${group.atrasos} meses pendentes`}
+                          {group.atrasos === 0 ? '✅ Em dia' : `⚠️ ${group.atrasos} meses pendentes`}
+                          {' • '}
+                          <span className="text-blue-600">
+                            R$ {group.amountPerPerson.toFixed(2)}/mês
+                            {group.type === 'couple' && ' (cada)'}
+                          </span>
                         </p>
                       </div>
                     </div>
@@ -431,8 +934,13 @@ const MyTeamView: React.FC<MyTeamViewProps> = ({ teamId, userId, userRole }) => 
                     <div className="flex items-center gap-4">
                       <button 
                         onClick={() => {
-                          setPaymentForm({ ...paymentForm, year: viewYear, months: [viewMonth], observation: '' });
-                          setSelectedForPayment({ memberIds: group.members.map(m => m.id), displayName: group.displayName });
+                          setPaymentForm({ ...paymentForm, year: viewYear, months: [viewMonth], amountPerMonth: group.amountPerPerson, observation: '' });
+                          setSelectedForPayment({ 
+                            memberIds: group.members.map(m => m.id), 
+                            displayName: group.displayName,
+                            amountPerPerson: group.amountPerPerson,
+                            payingMembers: group.payingMembers
+                          });
                           setShowPayModal(true);
                         }}
                         className="px-8 py-4 bg-blue-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl shadow-blue-100 hover:bg-blue-700 transition-all active:scale-95 flex items-center gap-2"
@@ -561,14 +1069,41 @@ const MyTeamView: React.FC<MyTeamViewProps> = ({ teamId, userId, userRole }) => 
                 </div>
                 
                 <div className="p-5 space-y-5 overflow-y-auto max-h-[60vh] no-scrollbar">
-                    <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 flex items-center justify-between">
-                        <div>
-                          <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-0.5">Membro/Casal</p>
-                          <p className="text-base font-black text-gray-800">{selectedForPayment.displayName}</p>
+                    <div className="bg-gradient-to-br from-blue-50 to-purple-50 p-5 rounded-xl border-2 border-blue-100 space-y-3">
+                        <div className="flex items-start justify-between">
+                          <div>
+                            <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1">Unidade Familiar</p>
+                            <p className="text-base font-black text-gray-800">{selectedForPayment.displayName}</p>
+                            <div className="flex gap-2 flex-wrap mt-2">
+                              {selectedForPayment.payingMembers.map((member: Member) => (
+                                <span 
+                                  key={member.id} 
+                                  className="text-[8px] font-bold px-2 py-1 rounded-lg bg-blue-500 text-white"
+                                >
+                                  {member.nickname || member.name.split(' ')[0]}
+                                  {member.relationshipType && ` (${member.relationshipType})`}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1">Valor por Pessoa</p>
+                            <p className="text-lg font-black text-blue-600">R$ {selectedForPayment.amountPerPerson.toFixed(2)}</p>
+                            {selectedForPayment.payingMembers.length > 1 && (
+                              <p className="text-[8px] font-semibold text-blue-500 mt-1">
+                                Total: R$ {(selectedForPayment.amountPerPerson * selectedForPayment.payingMembers.length).toFixed(2)}/mês
+                              </p>
+                            )}
+                          </div>
                         </div>
-                        <div className="text-right">
-                          <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-0.5">Total a Lançar</p>
-                          <p className="text-lg font-black text-emerald-600">R$ {(paymentForm.months.length * paymentForm.amountPerMonth).toFixed(2)}</p>
+                        <div className="bg-white rounded-lg p-3 text-center">
+                          <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1">Total a Lançar</p>
+                          <p className="text-2xl font-black text-emerald-600">
+                            R$ {(paymentForm.months.length * selectedForPayment.amountPerPerson * selectedForPayment.payingMembers.length).toFixed(2)}
+                          </p>
+                          <p className="text-[9px] font-semibold text-gray-500 mt-1">
+                            {paymentForm.months.length} {paymentForm.months.length === 1 ? 'mês' : 'meses'} × {selectedForPayment.payingMembers.length} {selectedForPayment.payingMembers.length === 1 ? 'pessoa' : 'pessoas'}
+                          </p>
                         </div>
                     </div>
 
@@ -631,6 +1166,135 @@ const MyTeamView: React.FC<MyTeamViewProps> = ({ teamId, userId, userRole }) => 
                 </div>
             </div>
           </div>
+      )}
+
+      {/* MODAL DE CRIAÇÃO/EDIÇÃO DE FAMÍLIAS */}
+      {showFamilyModal && (
+        <div className="fixed inset-0 z-[500] flex items-center justify-center p-6 bg-slate-900/70 backdrop-blur-md animate-in fade-in duration-300">
+          <div className="bg-white w-full max-w-4xl rounded-3xl shadow-2xl flex flex-col overflow-hidden border-2 border-purple-100 animate-in zoom-in-95 duration-500">
+            <div className="p-8 border-b-2 border-purple-100 bg-gradient-to-r from-purple-50 to-pink-50">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-pink-500 text-white rounded-2xl flex items-center justify-center shadow-xl">
+                    <Heart className="w-8 h-8" />
+                  </div>
+                  <div>
+                    <h3 className="text-2xl font-black text-gray-900 tracking-tight">Criar Nova Família</h3>
+                    <p className="text-xs text-purple-600 font-bold uppercase tracking-wider mt-1">Organize os membros em unidades familiares</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => {
+                    setShowFamilyModal(false);
+                    setEditingFamily(null);
+                  }}
+                  className="w-10 h-10 rounded-xl bg-white hover:bg-red-50 text-gray-400 hover:text-red-600 transition-all flex items-center justify-center"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            <div className="p-8 space-y-6 overflow-y-auto max-h-[70vh]">
+              {/* Nome da Família */}
+              <div>
+                <label className="block text-sm font-black text-gray-700 uppercase tracking-wider mb-3">
+                  Nome da Família *
+                </label>
+                <input
+                  type="text"
+                  placeholder="Ex: Silva, Santos, Oliveira..."
+                  value={editingFamily?.name || ''}
+                  onChange={(e) => setEditingFamily(prev => prev ? {...prev, name: e.target.value} : {name: e.target.value, memberIds: []})}
+                  className="w-full bg-gray-50 border-2 border-gray-200 rounded-2xl px-6 py-4 text-lg font-bold text-gray-800 focus:ring-4 focus:ring-purple-100 focus:border-purple-400 transition-all outline-none"
+                />
+              </div>
+
+              {/* Seleção de Membros */}
+              <div>
+                <label className="block text-sm font-black text-gray-700 uppercase tracking-wider mb-3">
+                  Membros da Família * ({editingFamily?.memberIds.length || 0} selecionados)
+                </label>
+                
+                {availableMembers.length === 0 ? (
+                  <div className="bg-amber-50 border-2 border-amber-200 rounded-2xl p-6 text-center">
+                    <AlertCircle className="w-12 h-12 text-amber-600 mx-auto mb-3" />
+                    <p className="text-sm font-bold text-amber-800">Todos os membros já estão em famílias</p>
+                    <p className="text-xs text-amber-600 mt-1">Edite os membros existentes para removê-los de suas famílias atuais</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-80 overflow-y-auto p-1">
+                    {availableMembers.map(member => {
+                      const isSelected = editingFamily?.memberIds.includes(member.id);
+                      return (
+                        <div
+                          key={member.id}
+                          onClick={() => {
+                            setEditingFamily(prev => {
+                              if (!prev) return {name: '', memberIds: [member.id]};
+                              const newIds = isSelected 
+                                ? prev.memberIds.filter(id => id !== member.id)
+                                : [...prev.memberIds, member.id];
+                              return {...prev, memberIds: newIds};
+                            });
+                          }}
+                          className={`p-4 rounded-2xl border-2 cursor-pointer transition-all flex items-center gap-4 ${
+                            isSelected 
+                              ? 'bg-purple-50 border-purple-400 shadow-lg' 
+                              : 'bg-white border-gray-200 hover:border-purple-200 hover:shadow-md'
+                          }`}
+                        >
+                          <div className={`w-12 h-12 rounded-xl flex items-center justify-center font-black text-lg transition-all ${
+                            isSelected 
+                              ? 'bg-purple-500 text-white' 
+                              : 'bg-gray-100 text-gray-600'
+                          }`}>
+                            {isSelected ? <Check className="w-6 h-6" /> : member.name.substring(0, 1)}
+                          </div>
+                          <div className="flex-1">
+                            <p className="font-bold text-gray-900">{member.name}</p>
+                            <p className="text-xs text-gray-500 font-semibold mt-1">
+                              {member.maritalStatus} • {member.gender}
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Info Box */}
+              <div className="bg-blue-50 border-2 border-blue-200 rounded-2xl p-5">
+                <p className="text-xs text-blue-800 font-semibold leading-relaxed">
+                  <strong>💡 Dica:</strong> O primeiro membro selecionado será o <strong>Titular</strong> da família. 
+                  Se houver um segundo membro casado, será definido como <strong>Cônjuge</strong>. 
+                  Você pode ajustar os tipos de relacionamento depois editando cada membro individualmente.
+                </p>
+              </div>
+            </div>
+
+            <div className="p-6 border-t-2 border-gray-100 bg-gray-50 flex gap-4">
+              <button
+                onClick={handleSaveFamily}
+                disabled={!editingFamily?.name || (editingFamily?.memberIds.length || 0) === 0}
+                className="flex-1 bg-gradient-to-r from-purple-600 to-pink-600 text-white py-4 rounded-2xl font-black text-sm uppercase tracking-wider shadow-xl hover:shadow-2xl transition-all active:scale-95 disabled:opacity-50 disabled:grayscale flex items-center justify-center gap-3"
+              >
+                <Save className="w-5 h-5" />
+                Criar Família
+              </button>
+              <button
+                onClick={() => {
+                  setShowFamilyModal(false);
+                  setEditingFamily(null);
+                }}
+                className="px-8 py-4 rounded-2xl font-black text-sm uppercase tracking-wider text-gray-600 hover:bg-gray-200 transition-all"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
