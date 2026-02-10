@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Lock, 
   User, 
@@ -32,13 +32,34 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
   const [password, setPassword] = useState('');
   const [recoverEmail, setRecoverEmail] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // Carregar credenciais salvas
+  useEffect(() => {
+    const savedUsername = localStorage.getItem('mfc_username');
+    const savedPassword = localStorage.getItem('mfc_password');
+    if (savedUsername && savedPassword) {
+      setUsername(savedUsername);
+      setPassword(savedPassword);
+      setRememberMe(true);
+    }
+  }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setLoading(true);
+
+    // Salvar ou remover credenciais
+    if (rememberMe) {
+      localStorage.setItem('mfc_username', username);
+      localStorage.setItem('mfc_password', password);
+    } else {
+      localStorage.removeItem('mfc_username');
+      localStorage.removeItem('mfc_password');
+    }
 
     api.login(username, password)
       .then((data: any) => {
@@ -103,16 +124,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                 </div>
 
                 <div className="space-y-2">
-                  <div className="flex justify-between items-end px-1">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Senha</label>
-                    <button 
-                      type="button" 
-                      onClick={() => setView('recover')}
-                      className="text-[9px] font-black text-blue-600 uppercase tracking-widest hover:underline"
-                    >
-                      Recuperar
-                    </button>
-                  </div>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Senha</label>
                   <div className="relative group">
                     <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                       <Lock className="h-5 w-5 text-slate-300 group-focus-within:text-blue-600 transition-colors" />
@@ -133,6 +145,29 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                       {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                     </button>
                   </div>
+                  <button 
+                    type="button" 
+                    onClick={() => setView('recover')}
+                    className="text-[10px] font-bold text-blue-600 hover:text-blue-700 hover:underline transition-colors ml-1 mt-1.5 inline-block"
+                  >
+                    Esqueceu sua senha?
+                  </button>
+                </div>
+
+                <div className="flex items-center gap-3 px-1 py-1">
+                  <label className="flex items-center gap-3 cursor-pointer group">
+                    <div className="relative flex items-center">
+                      <input
+                        type="checkbox"
+                        checked={rememberMe}
+                        onChange={(e) => setRememberMe(e.target.checked)}
+                        className="w-5 h-5 rounded-md border-2 border-slate-300 text-blue-600 focus:ring-4 focus:ring-blue-500/20 transition-all cursor-pointer checked:bg-blue-600 checked:border-blue-600"
+                      />
+                    </div>
+                    <span className="text-sm font-semibold text-slate-600 group-hover:text-slate-900 transition-colors select-none">
+                      Lembrar meus dados
+                    </span>
+                  </label>
                 </div>
 
                 {error && (

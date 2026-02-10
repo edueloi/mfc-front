@@ -71,6 +71,10 @@ export const api = {
 
   getDashboardSummary: (month: string, year: string) => request(`/dashboard/summary?month=${month}&year=${year}`),
 
+  // Configurações Financeiras
+  getFinancialConfig: () => request('/config'),
+  updateFinancialConfig: (data: any) => request('/config', { method: 'PUT', body: JSON.stringify(data) }),
+
   // APIs externas (CEP e localidades)
   buscarCEP: (cep: string) => request(`/api/cep/${cep}`),
   getEstados: () => request('/api/estados'),

@@ -201,9 +201,9 @@ const FinanceView: React.FC<FinanceViewProps> = ({ cityId }) => {
               <tr className="bg-gray-50/50 border-b border-gray-100">
                 <th className="px-8 py-5 text-xs font-bold text-gray-400 uppercase tracking-widest">MFCista</th>
                 <th className="px-8 py-5 text-xs font-bold text-gray-400 uppercase tracking-widest">Status Pagamento</th>
-                <th className="px-8 py-5 text-xs font-bold text-gray-400 uppercase tracking-widest">Data LanÃ§amento</th>
+                <th className="px-8 py-5 text-xs font-bold text-gray-400 uppercase tracking-widest">Data Lançamento</th>
                 <th className="px-8 py-5 text-xs font-bold text-gray-400 uppercase tracking-widest">Valor</th>
-                <th className="px-8 py-5 text-xs font-bold text-gray-400 uppercase tracking-widest text-right">AÃ§Ã£o</th>
+                <th className="px-8 py-5 text-xs font-bold text-gray-400 uppercase tracking-widest text-right">Ação</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">

@@ -22,7 +22,8 @@ import {
   PieChart as PieIcon,
   TrendingUp,
   Clock,
-  Trash2
+  Trash2,
+  Layers
 } from 'lucide-react';
 import { api } from '../api';
 import { MemberStatus, UserRoleType, Member, City } from '../types';
@@ -91,6 +92,7 @@ const Members: React.FC = () => {
   const [showModal, setShowModal] = useState(false);
   const [editingMemberId, setEditingMemberId] = useState<string | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<{ show: boolean; memberId: string; memberName: string }>({ show: false, memberId: '', memberName: '' });
+  const [teamModal, setTeamModal] = useState<{ show: boolean; memberId: string; memberName: string; currentTeamId: string | null }>({ show: false, memberId: '', memberName: '', currentTeamId: null });
   
   const initialFormState = {
     name: '', nickname: '', dob: '', rg: '', cpf: '', bloodType: 'O+', gender: 'Feminino',
@@ -101,11 +103,12 @@ const Members: React.FC = () => {
     smoker: false, mobilityIssue: '', healthPlan: '', diet: '', medication: '',
     allergy: '', pcd: false, pcdDescription: '', profession: '', religion: 'Catolica',
     education: 'Superior completo', createAccess: false, email: '', username: '',
-    password: '', role: UserRoleType.USUARIO, status: MemberStatus.AGUARDANDO
+    password: '', role: UserRoleType.USUARIO, status: MemberStatus.AGUARDANDO, teamId: null as string | null
   };
   
   const [formData, setFormData] = useState(initialFormState);
   const [members, setMembers] = useState<Member[]>([]);
+  const [teams, setTeams] = useState<any[]>([]);
   const [cities, setCities] = useState<City[]>([]);
   const [estados, setEstados] = useState<Array<{id: number, sigla: string, nome: string}>>([]);
   const [cidadesPorEstado, setCidadesPorEstado] = useState<Array<{id: number, nome: string}>>([]);
@@ -120,6 +123,9 @@ const Members: React.FC = () => {
     api.getCities()
       .then(setCities)
       .catch(() => setCities([]));
+    api.getTeams()
+      .then(setTeams)
+      .catch(() => setTeams([]));
   };
 
   useEffect(() => {
@@ -246,6 +252,7 @@ const Members: React.FC = () => {
       mfcDate: formData.mfcDate,
       phone: unmask(formData.phone),
       emergencyPhone: unmask(formData.emergencyPhone),
+      teamId: formData.teamId,
       status: formData.status,
       street: formData.street,
       number: formData.number,
@@ -365,7 +372,8 @@ const Members: React.FC = () => {
       username: '',
       password: '',
       role: UserRoleType.USUARIO,
-      status: member.status || MemberStatus.AGUARDANDO
+      status: member.status || MemberStatus.AGUARDANDO,
+      teamId: member.teamId || null
     });
     setEditingMemberId(member.id);
     setShowModal(true);
@@ -391,6 +399,53 @@ const Members: React.FC = () => {
       })
       .catch(() => {
         setDeleteConfirm({ show: false, memberId: '', memberName: '' });
+      });
+  };
+
+  const handleTeamManagement = (member: Member) => {
+    setTeamModal({ 
+      show: true, 
+      memberId: member.id, 
+      memberName: member.name, 
+      currentTeamId: member.teamId || null 
+    });
+  };
+
+  const handleRemoveFromTeam = () => {
+    const updatePromise = api.updateMember(teamModal.memberId, { teamId: null });
+    
+    toast.promise(updatePromise, {
+      loading: 'Desvinculando da equipe...',
+      success: 'Membro desvinculado da equipe! ✅',
+      error: (err) => `Erro ao desvincular: ${err.message}`,
+    });
+
+    updatePromise
+      .then((updated: Member) => {
+        setMembers(prev => prev.map(m => m.id === teamModal.memberId ? updated : m));
+        setTeamModal({ show: false, memberId: '', memberName: '', currentTeamId: null });
+      })
+      .catch(() => {
+        // Erro já tratado pelo toast
+      });
+  };
+
+  const handleTransferTeam = (newTeamId: string) => {
+    const updatePromise = api.updateMember(teamModal.memberId, { teamId: newTeamId });
+    
+    toast.promise(updatePromise, {
+      loading: 'Transferindo de equipe...',
+      success: 'Membro transferido com sucesso! 🔄',
+      error: (err) => `Erro ao transferir: ${err.message}`,
+    });
+
+    updatePromise
+      .then((updated: Member) => {
+        setMembers(prev => prev.map(m => m.id === teamModal.memberId ? updated : m));
+        setTeamModal({ show: false, memberId: '', memberName: '', currentTeamId: null });
+      })
+      .catch(() => {
+        // Erro já tratado pelo toast
       });
   };
 
@@ -740,7 +795,13 @@ const Members: React.FC = () => {
                     </span>
                   </div>
                 </div>
-                <p className="text-xs text-gray-500 font-semibold mb-3">{member.phone}</p>
+                <p className="text-xs text-gray-500 font-semibold mb-1">{member.phone}</p>
+                {member.teamId && (
+                  <div className="flex items-center gap-1.5 mb-3">
+                    <div className="w-1.5 h-1.5 rounded-full bg-blue-500"></div>
+                    <span className="text-xs font-bold text-blue-600">{teams.find(t => t.id === member.teamId)?.name || 'Equipe não encontrada'}</span>
+                  </div>
+                )}
                 <div className="grid grid-cols-2 gap-3 mb-3">
                   <div className="flex items-center gap-2">
                     <Clock className="w-3.5 h-3.5 text-blue-500 flex-shrink-0" />
@@ -755,6 +816,15 @@ const Members: React.FC = () => {
                   </div>
                 </div>
                 <div className="flex gap-2 pt-2 border-t border-gray-100">
+                  {member.teamId && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleTeamManagement(member); }}
+                      className="px-3 py-2 bg-purple-50 text-purple-600 rounded-lg text-xs font-bold hover:bg-purple-100 transition-colors"
+                      title="Gerenciar Equipe"
+                    >
+                      <Layers className="w-3.5 h-3.5" />
+                    </button>
+                  )}
                   <button
                     onClick={(e) => { e.stopPropagation(); handleEdit(member); }}
                     className="flex-1 px-3 py-2 bg-blue-50 text-blue-600 rounded-lg text-xs font-bold hover:bg-blue-100 transition-colors"
@@ -790,6 +860,7 @@ const Members: React.FC = () => {
             <thead>
               <tr className="bg-gray-50/50 border-b border-gray-100">
                 <th className="px-10 py-6 text-[10px] font-black text-gray-400 uppercase tracking-widest">MFCista</th>
+                <th className="px-10 py-6 text-[10px] font-black text-gray-400 uppercase tracking-widest">Equipe Base</th>
                 <th className="px-10 py-6 text-[10px] font-black text-gray-400 uppercase tracking-widest">Dados MFC</th>
                 <th className="px-10 py-6 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">Idade</th>
                 <th className="px-10 py-6 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">Status</th>
@@ -815,6 +886,16 @@ const Members: React.FC = () => {
                     </div>
                   </td>
                   <td className="px-10 py-5 whitespace-nowrap">
+                    {member.teamId ? (
+                      <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+                        <span className="text-sm font-bold text-gray-700">{teams.find(t => t.id === member.teamId)?.name || 'Eq. não encontrada'}</span>
+                      </div>
+                    ) : (
+                      <span className="text-xs text-gray-400 italic">Sem equipe</span>
+                    )}
+                  </td>
+                  <td className="px-10 py-5 whitespace-nowrap">
                     <div className="flex items-center gap-2 mb-1">
                        <Clock className="w-3.5 h-3.5 text-blue-500" />
                        <span className="text-sm font-bold text-gray-700">{calculateYears(member.mfcDate)} anos</span>
@@ -835,6 +916,16 @@ const Members: React.FC = () => {
                   </td>
                   <td className="px-10 py-5 whitespace-nowrap text-right">
                     <div className="flex gap-2 justify-end">
+                      {member.teamId && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleTeamManagement(member); }}
+                          className="px-3 py-1.5 bg-purple-50 text-purple-600 rounded-lg text-xs font-bold hover:bg-purple-100 transition-colors flex items-center gap-1"
+                          title="Gerenciar Equipe"
+                        >
+                          <Layers className="w-3.5 h-3.5" />
+                          Equipe
+                        </button>
+                      )}
                       <button
                         onClick={(e) => { e.stopPropagation(); handleEdit(member); }}
                         className="px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg text-xs font-bold hover:bg-blue-100 transition-colors"
@@ -853,7 +944,7 @@ const Members: React.FC = () => {
               ))}
               {filteredMembers.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="py-20 text-center">
+                  <td colSpan={6} className="py-20 text-center">
                     <div className="max-w-xs mx-auto space-y-4">
                       <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto border border-gray-100">
                         <Users className="w-8 h-8 text-gray-200" />
@@ -993,6 +1084,19 @@ const Members: React.FC = () => {
                     <SelectField label="Sexo" field="gender" options={['Feminino', 'Masculino', 'Outro']} value={formData.gender} onChange={(e: any) => updateFormData('gender', e.target.value)} />
                     <SelectField label="Tipo Sanguineo" field="bloodType" options={['O+', 'O-', 'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-']} value={formData.bloodType} onChange={(e: any) => updateFormData('bloodType', e.target.value)} />
                     <InputField label="MFCista Desde" field="mfcDate" type="date" value={formData.mfcDate} onChange={(e: any) => updateFormData('mfcDate', e.target.value)} />
+                    <div>
+                      <label className="block text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1 ml-1">Equipe Base</label>
+                      <select 
+                        className="w-full bg-white border-2 border-gray-200 rounded-xl px-4 py-2.5 text-sm font-semibold text-gray-700 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all outline-none"
+                        value={formData.teamId || ''}
+                        onChange={(e) => updateFormData('teamId', e.target.value || null)}
+                      >
+                        <option value="">Sem equipe</option>
+                        {teams.map(team => (
+                          <option key={team.id} value={team.id}>{team.name}</option>
+                        ))}
+                      </select>
+                    </div>
                     {editingMemberId && (
                       <SelectField label="Status" field="status" options={[MemberStatus.AGUARDANDO, MemberStatus.ATIVO, MemberStatus.INATIVO, MemberStatus.PENDENTE, MemberStatus.CONVIDADO]} value={formData.status} onChange={(e: any) => updateFormData('status', e.target.value)} />
                     )}
@@ -1181,6 +1285,84 @@ const Members: React.FC = () => {
                 className="px-6 py-2.5 bg-red-600 text-white font-bold text-sm rounded-xl hover:bg-red-700 transition-all shadow-lg shadow-red-100 active:scale-95"
               >
                 Sim, Excluir
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Gerenciamento de Equipe */}
+      {teamModal.show && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className="bg-white w-full max-w-md rounded-3xl shadow-2xl animate-in slide-in-from-bottom-5 duration-400 overflow-hidden border border-gray-100">
+            <div className="px-8 py-6 border-b border-gray-50">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-purple-100 rounded-2xl flex items-center justify-center">
+                  <Layers className="w-6 h-6 text-purple-600" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-black text-gray-900 tracking-tight">Gerenciar Equipe</h3>
+                  <p className="text-xs text-gray-500 font-semibold mt-1">{teamModal.memberName}</p>
+                </div>
+              </div>
+            </div>
+            <div className="px-8 py-6 space-y-4">
+              <div className="p-4 bg-blue-50 rounded-2xl border border-blue-100">
+                <p className="text-xs font-bold text-blue-600 mb-1">Equipe Atual</p>
+                <p className="text-sm font-black text-blue-900">
+                  {teamModal.currentTeamId 
+                    ? teams.find(t => t.id === teamModal.currentTeamId)?.name || 'Equipe não encontrada'
+                    : 'Sem equipe'}
+                </p>
+              </div>
+
+              <div className="space-y-3">
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Transferir para:</label>
+                <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                  {teams
+                    .filter(team => team.id !== teamModal.currentTeamId)
+                    .map(team => (
+                      <button
+                        key={team.id}
+                        onClick={() => handleTransferTeam(team.id)}
+                        className="w-full p-4 bg-gray-50 hover:bg-purple-50 border-2 border-gray-200 hover:border-purple-300 rounded-xl text-left transition-all group"
+                      >
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-sm font-bold text-gray-900 group-hover:text-purple-700">{team.name}</p>
+                            <p className="text-xs text-gray-500 mt-1">{team.city} - {team.state}</p>
+                          </div>
+                          <ChevronDown className="w-5 h-5 text-gray-400 group-hover:text-purple-600 transform -rotate-90" />
+                        </div>
+                      </button>
+                    ))}
+                  {teams.filter(t => t.id !== teamModal.currentTeamId).length === 0 && (
+                    <p className="text-sm text-gray-400 text-center py-4">Não há outras equipes disponíveis</p>
+                  )}
+                </div>
+              </div>
+
+              {teamModal.currentTeamId && (
+                <button
+                  onClick={handleRemoveFromTeam}
+                  className="w-full p-4 bg-red-50 hover:bg-red-100 border-2 border-red-200 rounded-xl text-left transition-all group"
+                >
+                  <div className="flex items-center gap-3">
+                    <X className="w-5 h-5 text-red-600" />
+                    <div>
+                      <p className="text-sm font-bold text-red-700">Remover da Equipe Atual</p>
+                      <p className="text-xs text-red-500 mt-1">O membro ficará sem equipe</p>
+                    </div>
+                  </div>
+                </button>
+              )}
+            </div>
+            <div className="px-8 py-5 bg-gray-50 border-t border-gray-100 flex items-center justify-end gap-3">
+              <button 
+                onClick={() => setTeamModal({ show: false, memberId: '', memberName: '', currentTeamId: null })}
+                className="px-5 py-2.5 text-gray-600 font-bold text-sm rounded-xl hover:bg-gray-100 transition-colors"
+              >
+                Fechar
               </button>
             </div>
           </div>

@@ -44,7 +44,7 @@ const BRAZILIAN_STATES = [
   { uf: 'MG', name: 'Minas Gerais' }, { uf: 'PA', name: 'Pará' }, { uf: 'PB', name: 'Paraíba' },
   { uf: 'PR', name: 'Paraná' }, { uf: 'PE', name: 'Pernambuco' }, { uf: 'PI', name: 'Piauí' },
   { uf: 'RJ', name: 'Rio de Janeiro' }, { uf: 'RN', name: 'Rio Grande do Norte' }, { uf: 'RS', name: 'Rio Grande do Sul' },
-  { uf: 'RO', name: 'RondÃ´nia' }, { uf: 'RR', name: 'Roraima' }, { uf: 'SC', name: 'Santa Catarina' },
+  { uf: 'RO', name: 'Rondônia' }, { uf: 'RR', name: 'Roraima' }, { uf: 'SC', name: 'Santa Catarina' },
   { uf: 'SP', name: 'São Paulo' }, { uf: 'SE', name: 'Sergipe' }, { uf: 'TO', name: 'Tocantins' }
 ];
 
@@ -78,10 +78,16 @@ interface RoleDefinition {
 }
 
 interface SettingsViewProps {
-  initialTab: 'permissoes' | 'cidades';
+  initialTab?: 'permissoes' | 'cidades' | 'financeiro';
 }
 
-const SettingsView: React.FC<SettingsViewProps> = ({ initialTab }) => {
+interface FinancialConfig {
+  monthlyPaymentAmount: number;
+  eventTicketDefaultValue: number;
+  currency: string;
+}
+
+const SettingsView: React.FC<SettingsViewProps> = ({ initialTab = 'permissoes' }) => {
   const [activeTab, setActiveTab] = useState(initialTab);
   const [citySearch, setCitySearch] = useState('');
   const [cities, setCities] = useState<City[]>([]);
@@ -91,9 +97,24 @@ const SettingsView: React.FC<SettingsViewProps> = ({ initialTab }) => {
   const [selectedRoleId, setSelectedRoleId] = useState<string>('');
   const [showRoleModal, setShowRoleModal] = useState(false);
   const [newRoleName, setNewRoleName] = useState('');
+
+  // State para Configurações Financeiras
+  const [financialConfig, setFinancialConfig] = useState<FinancialConfig>({
+    monthlyPaymentAmount: 50.00,
+    eventTicketDefaultValue: 100.00,
+    currency: 'BRL'
+  });
+  const [savedNotification, setSavedNotification] = useState(false);
   useEffect(() => {
     api.getCities().then(setCities).catch(() => setCities([]));
     api.getRoles().then(setRoles).catch(() => setRoles([]));
+    
+    // Carregar configurações financeiras do backend
+    api.getFinancialConfig()
+      .then(setFinancialConfig)
+      .catch((e) => {
+        console.error('Erro ao carregar configurações financeiras:', e);
+      });
   }, []);
 
   useEffect(() => {
@@ -213,12 +234,15 @@ const SettingsView: React.FC<SettingsViewProps> = ({ initialTab }) => {
           <p className="text-gray-500 font-medium text-sm lg:text-base">Ajustes finos da plataforma MFC Gestão.</p>
         </div>
 
-        <div className="flex bg-gray-100/80 p-1 rounded-2xl border border-gray-200/50 backdrop-blur-sm shadow-inner">
-          <button onClick={() => setActiveTab('permissoes')} className={`flex-1 lg:flex-none flex items-center justify-center gap-2 px-8 py-3.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'permissoes' ? 'bg-white text-blue-600 shadow-xl shadow-gray-200/50 border border-gray-100' : 'text-gray-400'}`}>
+        <div className="flex bg-gray-100/80 p-1 rounded-2xl border border-gray-200/50 backdrop-blur-sm shadow-inner overflow-x-auto">
+          <button onClick={() => setActiveTab('permissoes')} className={`flex-1 lg:flex-none flex items-center justify-center gap-2 px-6 lg:px-8 py-3.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'permissoes' ? 'bg-white text-blue-600 shadow-xl shadow-gray-200/50 border border-gray-100' : 'text-gray-400'}`}>
             <Shield className="w-4 h-4" /> Níveis de Acesso
           </button>
-          <button onClick={() => setActiveTab('cidades')} className={`flex-1 lg:flex-none flex items-center justify-center gap-2 px-8 py-3.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'cidades' ? 'bg-white text-blue-600 shadow-xl shadow-gray-200/50 border border-gray-100' : 'text-gray-400'}`}>
+          <button onClick={() => setActiveTab('cidades')} className={`flex-1 lg:flex-none flex items-center justify-center gap-2 px-6 lg:px-8 py-3.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'cidades' ? 'bg-white text-blue-600 shadow-xl shadow-gray-200/50 border border-gray-100' : 'text-gray-400'}`}>
             <MapPin className="w-4 h-4" /> Unidades do MFC
+          </button>
+          <button onClick={() => setActiveTab('financeiro')} className={`flex-1 lg:flex-none flex items-center justify-center gap-2 px-6 lg:px-8 py-3.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'financeiro' ? 'bg-white text-blue-600 shadow-xl shadow-gray-200/50 border border-gray-100' : 'text-gray-400'}`}>
+            <DollarSign className="w-4 h-4" /> Financeiro
           </button>
         </div>
       </div>
@@ -511,7 +535,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({ initialTab }) => {
                 disabled={!newCity.name}
                 className="bg-blue-600 text-white px-10 py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-2xl shadow-blue-100 hover:bg-blue-700 transition-all active:scale-95 flex items-center gap-3 disabled:opacity-50"
               >
-                <Save className="w-5 h-5" /> {editingCityId ? 'SALVAR ALTERAÃ‡Ã•ES' : 'ADICIONAR UNIDADE'}
+                <Save className="w-5 h-5" /> {editingCityId ? 'SALVAR ALTERAÇÕES' : 'ADICIONAR UNIDADE'}
               </button>
             </div>
           </div>
@@ -562,6 +586,88 @@ const SettingsView: React.FC<SettingsViewProps> = ({ initialTab }) => {
                 </button>
                 <button onClick={() => setShowDeleteModal(false)} className="text-[10px] font-black text-gray-400 uppercase tracking-widest hover:text-gray-600 transition-colors">
                   DESISTIR E VOLTAR
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'financeiro' && (
+        <div className="animate-in slide-in-from-right-4 duration-500">
+          <div className="bg-white rounded-[2rem] border border-gray-100 shadow-sm p-8 lg:p-10 space-y-8">
+            <div className="flex items-start gap-4">
+              <div className="w-14 h-14 bg-emerald-50 rounded-2xl flex items-center justify-center text-emerald-600 shrink-0">
+                <DollarSign className="w-7 h-7" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-2xl font-black text-gray-900 tracking-tight leading-none mb-2">Configurações Financeiras</h3>
+                <p className="text-sm text-gray-500">Defina os valores padrão utilizados nos lançamentos do sistema.</p>
+              </div>
+            </div>
+
+            <div className="border-t border-gray-100 pt-8 space-y-6">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="space-y-3">
+                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">
+                    Valor Padrão da Mensalidade
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400 font-black text-sm">R$</span>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      className="w-full bg-gray-50 border border-gray-200 rounded-2xl pl-12 pr-5 py-4 font-black text-gray-800 text-lg outline-none focus:ring-4 focus:ring-blue-50 focus:bg-white transition-all"
+                      value={financialConfig.monthlyPaymentAmount}
+                      onChange={(e) => setFinancialConfig({...financialConfig, monthlyPaymentAmount: parseFloat(e.target.value) || 0})}
+                    />
+                  </div>
+                  <p className="text-xs text-gray-400 ml-1">Este valor será usado como padrão ao lançar mensalidades nas equipes.</p>
+                </div>
+
+                <div className="space-y-3">
+                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">
+                    Valor Padrão de Ingressos para Eventos
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400 font-black text-sm">R$</span>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      className="w-full bg-gray-50 border border-gray-200 rounded-2xl pl-12 pr-5 py-4 font-black text-gray-800 text-lg outline-none focus:ring-4 focus:ring-blue-50 focus:bg-white transition-all"
+                      value={financialConfig.eventTicketDefaultValue}
+                      onChange={(e) => setFinancialConfig({...financialConfig, eventTicketDefaultValue: parseFloat(e.target.value) || 0})}
+                    />
+                  </div>
+                  <p className="text-xs text-gray-400 ml-1">Valor sugerido ao criar novos eventos no sistema.</p>
+                </div>
+              </div>
+
+              {savedNotification && (
+                <div className="bg-green-50 border border-green-200 rounded-2xl p-4 flex items-center gap-3 animate-in fade-in duration-300">
+                  <CheckCircle2 className="w-5 h-5 text-green-600" />
+                  <p className="text-sm font-bold text-green-700">Configurações salvas com sucesso!</p>
+                </div>
+              )}
+
+              <div className="flex justify-end pt-4">
+                <button
+                  onClick={() => {
+                    api.updateFinancialConfig(financialConfig)
+                      .then(() => {
+                        setSavedNotification(true);
+                        setTimeout(() => setSavedNotification(false), 3000);
+                      })
+                      .catch((e) => {
+                        console.error('Erro ao salvar configurações:', e);
+                        alert('Erro ao salvar configurações financeiras');
+                      });
+                  }}
+                  className="bg-blue-600 text-white px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-blue-100 hover:bg-blue-700 transition-all active:scale-95 flex items-center gap-3"
+                >
+                  <Save className="w-5 h-5" /> SALVAR CONFIGURAÇÕES
                 </button>
               </div>
             </div>

@@ -131,7 +131,7 @@ const GeneralLedger: React.FC = () => {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
           <h2 className="text-4xl font-black text-gray-900 tracking-tight">Gestão de Livro Caixa</h2>
-          <p className="text-gray-500 font-medium">Controle financeiro detalhado de entradas e saÃ­das da unidade.</p>
+          <p className="text-gray-500 font-medium">Controle financeiro detalhado de entradas e saídas da unidade.</p>
         </div>
         <button 
           onClick={() => setShowEntityModal(true)}
@@ -388,10 +388,10 @@ const GeneralLedger: React.FC = () => {
                 </div>
 
                 <div className="sm:col-span-2">
-                  <label className="block text-[10px] font-black text-gray-300 uppercase mb-2 tracking-widest ml-1">HistÃ³rico / DescriÃ§Ã£o</label>
+                  <label className="block text-[10px] font-black text-gray-300 uppercase mb-2 tracking-widest ml-1">Histórico / Descrição</label>
                   <input 
                     type="text" 
-                    placeholder="DescriÃ§Ã£o opcional do lanÃ§amento..." 
+                    placeholder="Descrição opcional do lançamento..." 
                     className="w-full bg-gray-50 border border-gray-100 rounded-xl px-5 py-3.5 focus:ring-4 focus:ring-blue-100 focus:bg-white transition-all font-semibold text-gray-600 outline-none text-sm" 
                     value={launchForm.description} 
                     onChange={e => setLaunchForm({...launchForm, description: e.target.value})} 

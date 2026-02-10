@@ -73,7 +73,7 @@ const TeamDetail: React.FC = () => {
     { month: 'Jun', count: 3 },
   ];
 
-  if (!team) return <div>Equipe Não encontrada</div>;
+  if (!team) return <div>Equipe não encontrada</div>;
 
   return (
     <div className="space-y-8">
@@ -161,11 +161,11 @@ const TeamDetail: React.FC = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
           <div className="bg-white rounded-2xl w-full max-w-2xl shadow-2xl overflow-hidden max-h-[80vh] flex flex-col">
             <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-              <h3 className="text-lg font-bold text-gray-800">Adicionar Membro Ã  Equipe</h3>
+              <h3 className="text-lg font-bold text-gray-800">Adicionar Membro à Equipe</h3>
               <button onClick={() => setShowAddMember(false)}><XIcon className="w-6 h-6 text-gray-400" /></button>
             </div>
             <div className="p-6 overflow-y-auto">
-              <p className="text-sm text-gray-500 mb-4">Apenas membros com status <strong>Aguardando</strong> estão dispoNíveis para vinculação.</p>
+              <p className="text-sm text-gray-500 mb-4">Apenas membros com status <strong>Aguardando</strong> estão disponíveis para vinculação.</p>
               <div className="space-y-2">
                 {waitingMembers.map(member => (
                   <div key={member.id} className="flex items-center justify-between p-3 border border-gray-100 rounded-xl hover:bg-blue-50 transition-colors">

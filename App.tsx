@@ -104,7 +104,7 @@ const App: React.FC = () => {
           <Route path="mfcistas/:memberId" element={<MemberProfile />} />
           <Route path="equipes" element={<Teams />} />
           <Route path="equipes/:teamId" element={<TeamDetail />} />
-          <Route path="minha-equipe" element={<MyTeamView teamId={currentUser.teamId || 't1'} userId={currentUser.id} />} />
+          <Route path="minha-equipe" element={<MyTeamView teamId={currentUser.teamId || 't1'} userId={currentUser.id} userRole={currentUser.role} />} />
           <Route path="eventos" element={<EventsView />} />
           <Route path="financeiro" element={<FinanceView cityId={currentUser.cityId} />} />
           <Route path="livro-caixa" element={<GeneralLedger />} />

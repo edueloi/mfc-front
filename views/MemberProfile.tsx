@@ -57,9 +57,9 @@ const MemberProfile: React.FC = () => {
 
   const tabs = [
     { id: 'pessoal', label: 'Dados Pessoais', icon: UserCheck },
-    { id: 'endereco', label: 'EndereÃ§o', icon: MapPin },
-    { id: 'saude', label: 'Outros / SaÃºde', icon: Heart },
-    { id: 'historico', label: 'HistÃ³rico / Cargos', icon: Award },
+    { id: 'endereco', label: 'Endereço', icon: MapPin },
+    { id: 'saude', label: 'Outros / Saúde', icon: Heart },
+    { id: 'historico', label: 'Histórico / Cargos', icon: Award },
     { id: 'acesso', label: 'Dados Acesso', icon: History },
   ];
 
@@ -163,14 +163,14 @@ const MemberProfile: React.FC = () => {
               <div className="space-y-8">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-6">
                   <InfoItem label="Pai" value={member.father} />
-                  <InfoItem label="MÃ£e" value={member.mother} />
+                  <InfoItem label="Mãe" value={member.mother} />
                   <InfoItem label="Fuma?" value={member.smoker ? 'Sim' : 'Não'} />
-                  <InfoItem label="Dificuldade de LocomoÃ§Ã£o" value={member.mobilityIssue} />
-                  <InfoItem label="Plano de SaÃºde" value={member.healthPlan} />
+                  <InfoItem label="Dificuldade de Locomoção" value={member.mobilityIssue} />
+                  <InfoItem label="Plano de Saúde" value={member.healthPlan} />
                   <InfoItem label="PCD?" value={member.pcd ? 'Sim' : 'Não'} />
-                  {member.pcdDescription && <InfoItem label="DescriÃ§Ã£o DeficiÃªncia" value={member.pcdDescription} />}
-                  <InfoItem label="ReligiÃ£o" value={member.religion} />
-                  <InfoItem label="ProfissÃ£o" value={member.profession} />
+                  {member.pcdDescription && <InfoItem label="Descrição Deficiência" value={member.pcdDescription} />}
+                  <InfoItem label="Religião" value={member.religion} />
+                  <InfoItem label="Profissão" value={member.profession} />
                   <InfoItem label="Escolaridade" value={member.education} />
                 </div>
               </div>
@@ -182,7 +182,7 @@ const MemberProfile: React.FC = () => {
                   <ShieldAlert className="w-5 h-5 text-blue-600 mt-0.5" />
                   <div>
                     <h4 className="text-sm font-bold text-blue-900">Cargos Atuais no Movimento</h4>
-                    <p className="text-sm text-blue-700">Responsabilidades exercidas neste perÃ­odo.</p>
+                    <p className="text-sm text-blue-700">Responsabilidades exercidas neste período.</p>
                   </div>
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -191,7 +191,7 @@ const MemberProfile: React.FC = () => {
                       {role}
                     </span>
                   ))}
-                  {member.movementRoles.length === 0 && <p className="text-gray-500 italic">Nenhum cargo atribuÃ­do. Membro comum.</p>}
+                  {member.movementRoles.length === 0 && <p className="text-gray-500 italic">Nenhum cargo atribuído. Membro comum.</p>}
                 </div>
               </div>
             )}
@@ -199,10 +199,10 @@ const MemberProfile: React.FC = () => {
             {activeTab === 'acesso' && (
               <div className="space-y-8">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-6">
-                  <InfoItem label="UsuÃ¡rio Sistema" value="alziraloretti" />
+                  <InfoItem label="Usuário Sistema" value="alziraloretti" />
                   <InfoItem label="E-mail Acesso" value="farahalziraloretti@gmail.com" />
                   <InfoItem label="Data Cadastro no Sistema" value={member.createdAt} />
-                  <InfoItem label="Ãšltima AtualizaÃ§Ã£o" value={member.updatedAt} />
+                  <InfoItem label="Última Atualização" value={member.updatedAt} />
                 </div>
                 <div className="flex gap-4">
                   <button className="px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50">Redefinir Senha</button>
