@@ -89,6 +89,8 @@ export interface Payment {
   referenceMonth: string;
   status: 'Pago' | 'Pendente' | 'Isento';
   launchedBy: string;
+  memberName?: string;
+  familyName?: string;
 }
 
 export interface FinancialEntity {

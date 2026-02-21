@@ -1156,7 +1156,7 @@ const MyTeamView: React.FC<MyTeamViewProps> = ({ teamId, userId, userRole }) => 
               <table className="w-full text-left">
                  <thead>
                     <tr className="bg-gray-50/50">
-                       <th className="px-8 py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">MFCista</th>
+                       <th className="px-8 py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">MFCista / Família</th>
                        <th className="px-8 py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Referência</th>
                        <th className="px-8 py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Data Lanç.</th>
                        <th className="px-8 py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Valor</th>
@@ -1171,7 +1171,14 @@ const MyTeamView: React.FC<MyTeamViewProps> = ({ teamId, userId, userRole }) => 
                              <td className="px-8 py-4">
                                 <div className="flex items-center gap-3">
                                    <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center text-[10px] font-black">{member?.name.substring(0, 1)}</div>
-                                   <span className="text-sm font-bold text-gray-800">{member?.name}</span>
+                                   <div>
+                                     <span className="text-sm font-bold text-gray-800 block">{member?.name}</span>
+                                     {p.familyName && (
+                                       <span className="text-[9px] font-black text-purple-600 uppercase tracking-widest">
+                                         👨‍👩‍👧‍👦 Família {p.familyName}
+                                       </span>
+                                     )}
+                                   </div>
                                 </div>
                              </td>
                              <td className="px-8 py-4 text-sm font-black text-gray-500">{p.referenceMonth}</td>

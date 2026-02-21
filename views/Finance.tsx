@@ -24,17 +24,25 @@ interface FinanceViewProps {
 }
 
 const FinanceView: React.FC<FinanceViewProps> = ({ cityId }) => {
-  const [selectedMonth, setSelectedMonth] = useState('10/2023');
+  const currentDate = new Date();
+  const [selectedYear, setSelectedYear] = useState(currentDate.getFullYear());
+  const [selectedMonth, setSelectedMonth] = useState(currentDate.getMonth() + 1);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
   const [teams, setTeams] = useState<BaseTeam[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
+  const [defaultMonthlyAmount, setDefaultMonthlyAmount] = useState(30);
 
   const loadData = () => {
     api.getTeams().then(setTeams).catch(() => setTeams([]));
     api.getMembers().then(setMembers).catch(() => setMembers([]));
     api.getPayments().then(setPayments).catch(() => setPayments([]));
+    api.getFinancialConfig().then((config: any) => {
+      if (config && config.monthlyPaymentAmount) {
+        setDefaultMonthlyAmount(parseFloat(config.monthlyPaymentAmount));
+      }
+    }).catch(() => {});
   };
 
   useEffect(() => {
@@ -52,18 +60,62 @@ const FinanceView: React.FC<FinanceViewProps> = ({ cityId }) => {
   }, []);
 
   // Filtragem de equipes pela cidade
-  const cityTeams = teams;
+  const cityTeams = teams.filter(t => searchTerm === '' || t.name.toLowerCase().includes(searchTerm.toLowerCase()));
 
   const getTeamStats = (teamId: string) => {
-    const teamMembers = members.filter(m => m.teamId === teamId);
-    const teamPayments = payments.filter(p => p.teamId === teamId && p.referenceMonth === selectedMonth);
-    const paidCount = teamPayments.filter(p => p.status === 'Pago').length;
+    const teamMembers = members.filter(m => m.teamId === teamId && m.status === 'Ativo');
+    const teamPayments = payments.filter(p => {
+      if (p.teamId !== teamId) return false;
+      return p.referenceMonth === `${selectedMonth}/${selectedYear}`;
+    });
+    
+    const paidMembers = new Set(teamPayments.map(p => p.memberId));
+    const paidCount = paidMembers.size;
+    const totalAmount = teamPayments.reduce((sum, p) => sum + (p.amount || 0), 0);
+    
     return {
       total: teamMembers.length,
       paid: paidCount,
-      percent: teamMembers.length > 0 ? (paidCount / teamMembers.length) * 100 : 0
+      percent: teamMembers.length > 0 ? (paidCount / teamMembers.length) * 100 : 0,
+      amount: totalAmount
     };
   };
+
+  // Calcular valor esperado considerando sistema de famílias (mesmo cálculo do MyTeam)
+  const calculateExpectedAmount = (activeMembers: Member[]) => {
+    const payingMembers = activeMembers.filter(m => m.paysMonthly !== false);
+    let total = 0;
+    
+    payingMembers.forEach(m => {
+      // Verifica se o membro está em um casal (para dividir o valor)
+      const isInCouple = payingMembers.some(other => 
+        other.id !== m.id && 
+        other.familyName === m.familyName && 
+        other.familyName && 
+        ((m.relationshipType === 'Titular' && other.relationshipType === 'Cônjuge') ||
+         (m.relationshipType === 'Cônjuge' && other.relationshipType === 'Titular'))
+      );
+      
+      total += isInCouple ? defaultMonthlyAmount / 2 : defaultMonthlyAmount;
+    });
+    
+    return total;
+  };
+
+  // Calcular estatísticas gerais
+  const allActiveMembers = members.filter(m => m.status === 'Ativo');
+  const allPayments = payments.filter(p => {
+    return p.referenceMonth === `${selectedMonth}/${selectedYear}`;
+  });
+  
+  const totalArrecadado = allPayments.reduce((sum, p) => sum + (p.amount || 0), 0);
+  const paidMembersSet = new Set(allPayments.map(p => p.memberId));
+  const totalPago = paidMembersSet.size;
+  const totalEsperado = calculateExpectedAmount(allActiveMembers);
+  const pendente = totalEsperado - totalArrecadado;
+  const equipesEmDia = cityTeams.filter(t => getTeamStats(t.id).percent === 100).length;
+  
+  const monthNames = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
 
   const renderTeamList = () => (
     <div className="space-y-6">
@@ -71,28 +123,28 @@ const FinanceView: React.FC<FinanceViewProps> = ({ cityId }) => {
         <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <div className="p-3 bg-blue-50 text-blue-600 rounded-2xl"><Wallet className="w-6 h-6" /></div>
-            <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded-lg uppercase tracking-wider">Ref: {selectedMonth}</span>
+            <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded-lg uppercase tracking-wider">{monthNames[selectedMonth - 1]}/{selectedYear}</span>
           </div>
           <h3 className="text-gray-400 text-xs font-bold uppercase tracking-widest">Total Arrecadado</h3>
-          <p className="text-3xl font-bold text-gray-900 mt-1">R$ 4.250,00</p>
+          <p className="text-3xl font-bold text-gray-900 mt-1">R$ {totalArrecadado.toFixed(2)}</p>
         </div>
         
         <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <div className="p-3 bg-amber-50 text-amber-600 rounded-2xl"><Clock className="w-6 h-6" /></div>
-            <span className="text-[10px] font-bold text-amber-600 bg-amber-50 px-2 py-1 rounded-lg uppercase tracking-wider">85% da Meta</span>
+            <span className="text-[10px] font-bold text-amber-600 bg-amber-50 px-2 py-1 rounded-lg uppercase tracking-wider">{totalEsperado > 0 ? Math.round((totalArrecadado / totalEsperado) * 100) : 0}% da Meta</span>
           </div>
           <h3 className="text-gray-400 text-xs font-bold uppercase tracking-widest">Pendente Geral</h3>
-          <p className="text-3xl font-bold text-gray-900 mt-1">R$ 750,00</p>
+          <p className="text-3xl font-bold text-gray-900 mt-1">R$ {Math.max(0, pendente).toFixed(2)}</p>
         </div>
 
         <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <div className="p-3 bg-green-50 text-green-600 rounded-2xl"><CheckCircle2 className="w-6 h-6" /></div>
-            <span className="text-[10px] font-bold text-green-600 bg-green-50 px-2 py-1 rounded-lg uppercase tracking-wider">Tatuí</span>
+            <span className="text-[10px] font-bold text-green-600 bg-green-50 px-2 py-1 rounded-lg uppercase tracking-wider">{totalPago} Pagos</span>
           </div>
           <h3 className="text-gray-400 text-xs font-bold uppercase tracking-widest">Equipes em Dia</h3>
-          <p className="text-3xl font-bold text-gray-900 mt-1">12 / 15</p>
+          <p className="text-3xl font-bold text-gray-900 mt-1">{equipesEmDia} / {cityTeams.length}</p>
         </div>
       </div>
 
@@ -132,7 +184,7 @@ const FinanceView: React.FC<FinanceViewProps> = ({ cityId }) => {
                   <div>
                     <h4 className="font-bold text-gray-900 group-hover:text-blue-700 transition-colors">{team.name}</h4>
                     <p className="text-xs text-gray-500 font-medium flex items-center gap-1">
-                      <Users className="w-3 h-3" /> {team.memberCount} Membros
+                      <Users className="w-3 h-3" /> {stats.total} Membros Ativos
                     </p>
                   </div>
                 </div>
@@ -155,7 +207,7 @@ const FinanceView: React.FC<FinanceViewProps> = ({ cityId }) => {
                     <p className={`text-sm font-bold ${stats.percent === 100 ? 'text-green-600' : 'text-amber-600'}`}>
                       {stats.percent === 100 ? 'EM DIA' : 'PENDENTE'}
                     </p>
-                    <p className="text-[10px] text-gray-400 font-bold">FECHAMENTO: 25/{selectedMonth.split('/')[0]}</p>
+                    <p className="text-[10px] text-gray-400 font-bold">R$ {stats.amount.toFixed(2)} arrecadado</p>
                   </div>
                   <ChevronRight className="w-5 h-5 text-gray-300 group-hover:text-blue-500 transition-all" />
                 </div>
@@ -169,7 +221,7 @@ const FinanceView: React.FC<FinanceViewProps> = ({ cityId }) => {
 
   const renderTeamDetail = () => {
     const team = teams.find(t => t.id === selectedTeamId);
-    const teamMembers = members.filter(m => m.teamId === selectedTeamId);
+    const teamMembers = members.filter(m => m.teamId === selectedTeamId && m.status === 'Ativo');
     
     return (
       <div className="space-y-6 animate-in slide-in-from-right duration-300">
@@ -186,7 +238,7 @@ const FinanceView: React.FC<FinanceViewProps> = ({ cityId }) => {
               <h2 className="text-2xl font-bold text-gray-900">{team?.name}</h2>
               <span className="px-3 py-1 bg-blue-100 text-blue-700 text-[10px] font-bold rounded-lg uppercase">Equipe Base</span>
             </div>
-            <p className="text-gray-500 text-sm font-medium">LanÃ§amentos referentes ao mês de <strong>{selectedMonth}</strong></p>
+            <p className="text-gray-500 text-sm font-medium">Lançamentos referentes ao mês de <strong>{monthNames[selectedMonth - 1]}/{selectedYear}</strong></p>
           </div>
           <div className="flex gap-3">
              <button className="bg-blue-600 text-white px-6 py-3 rounded-2xl font-bold text-sm shadow-lg shadow-blue-100 hover:bg-blue-700 transition-all">
@@ -208,7 +260,26 @@ const FinanceView: React.FC<FinanceViewProps> = ({ cityId }) => {
             </thead>
             <tbody className="divide-y divide-gray-50">
               {teamMembers.map(member => {
-                const payment = payments.find(p => p.memberId === member.id && p.referenceMonth === selectedMonth);
+                const payment = payments.find(p => {
+                  if (p.memberId !== member.id) return false;
+                  return p.referenceMonth === `${selectedMonth}/${selectedYear}`;
+                });
+                
+                // Calcular valor esperado para este membro específico
+                const teamPayingMembers = teamMembers.filter(m => m.paysMonthly !== false);
+                const isInCouple = teamPayingMembers.some(other => 
+                  other.id !== member.id && 
+                  other.familyName === member.familyName && 
+                  other.familyName && 
+                  ((member.relationshipType === 'Titular' && other.relationshipType === 'Cônjuge') ||
+                   (member.relationshipType === 'Cônjuge' && other.relationshipType === 'Titular'))
+                );
+                const memberExpectedAmount = member.paysMonthly === false ? 0 : (isInCouple ? defaultMonthlyAmount / 2 : defaultMonthlyAmount);
+                
+                const isPaid = !!payment;
+                const paymentAmount = payment?.amount || memberExpectedAmount;
+                const paymentDate = payment?.date ? new Date(payment.date).toLocaleDateString('pt-BR') : '---';
+                
                 return (
                   <tr key={member.id} className="hover:bg-gray-50/50 transition-colors">
                     <td className="px-8 py-5">
@@ -216,12 +287,35 @@ const FinanceView: React.FC<FinanceViewProps> = ({ cityId }) => {
                         <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center text-gray-500 font-bold text-xs uppercase">
                           {member.name.substring(0, 1)}
                         </div>
-                        <span className="text-sm font-bold text-gray-800">{member.name}</span>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-bold text-gray-800">{member.name}</span>
+                            {member.relationshipType && member.relationshipType !== 'Titular' && (
+                              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-blue-100 text-blue-700">
+                                {member.relationshipType}
+                              </span>
+                            )}
+                          </div>
+                          {member.familyName && (
+                            <span className="text-[9px] font-black text-purple-600 uppercase tracking-widest">
+                              👨‍👩‍👧‍👦 Família {member.familyName}
+                            </span>
+                          )}
+                          {member.paysMonthly === false && (
+                            <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest">
+                              🎓 Isento de Pagamento
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </td>
                     <td className="px-8 py-5">
                       <div className="flex items-center gap-2">
-                        {payment?.status === 'Pago' ? (
+                        {member.paysMonthly === false ? (
+                          <span className="flex items-center gap-1.5 text-gray-400 text-xs font-bold uppercase tracking-tight">
+                            <CheckCircle2 className="w-4 h-4" /> Isento
+                          </span>
+                        ) : isPaid ? (
                           <span className="flex items-center gap-1.5 text-green-600 text-xs font-bold uppercase tracking-tight">
                             <CheckCircle2 className="w-4 h-4" /> Pago
                           </span>
@@ -233,13 +327,15 @@ const FinanceView: React.FC<FinanceViewProps> = ({ cityId }) => {
                       </div>
                     </td>
                     <td className="px-8 py-5 text-sm font-medium text-gray-500">
-                      {payment?.date || '---'}
+                      {paymentDate}
                     </td>
                     <td className="px-8 py-5 text-sm font-bold text-gray-900">
-                      R$ 50,00
+                      R$ {paymentAmount.toFixed(2)}
                     </td>
                     <td className="px-8 py-5 text-right">
-                      {payment?.status === 'Pago' ? (
+                      {member.paysMonthly === false ? (
+                        <span className="text-[10px] font-bold text-gray-300 uppercase">—</span>
+                      ) : isPaid ? (
                         <button className="text-[10px] font-bold text-gray-400 uppercase hover:text-red-500 transition-colors">Estornar</button>
                       ) : (
                         <button className="bg-green-50 text-green-700 px-4 py-1.5 rounded-xl text-xs font-bold hover:bg-green-100 transition-all border border-green-100">
@@ -269,11 +365,21 @@ const FinanceView: React.FC<FinanceViewProps> = ({ cityId }) => {
            <select 
             className="bg-transparent border-none text-sm font-bold text-gray-700 focus:ring-0 cursor-pointer"
             value={selectedMonth}
-            onChange={(e) => setSelectedMonth(e.target.value)}
+            onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
            >
-             <option value="10/2023">Outubro / 2023</option>
-             <option value="09/2023">Setembro / 2023</option>
-             <option value="08/2023">Agosto / 2023</option>
+             {monthNames.map((month, index) => (
+               <option key={index} value={index + 1}>{month}</option>
+             ))}
+           </select>
+           <span className="text-gray-300">/</span>
+           <select 
+            className="bg-transparent border-none text-sm font-bold text-gray-700 focus:ring-0 cursor-pointer"
+            value={selectedYear}
+            onChange={(e) => setSelectedYear(parseInt(e.target.value))}
+           >
+             {[2024, 2025, 2026, 2027].map(year => (
+               <option key={year} value={year}>{year}</option>
+             ))}
            </select>
         </div>
       </div>
