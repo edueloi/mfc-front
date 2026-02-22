@@ -119,7 +119,7 @@ const GeneralLedger: React.FC = () => {
       alert("Por favor, preencha o valor, categoria e selecione ao menos um mês.");
       return;
     }
-    notify(`LanÃ§amento de ${launchForm.type} realizado com sucesso!`);
+    notify(`Lançamentos de ${launchForm.type} realizados com sucesso!`);
     setShowLaunchModal(false);
     setLaunchForm({ type: 'Receita', category: '', amount: '', description: '', months: [] });
   };
@@ -205,7 +205,7 @@ const GeneralLedger: React.FC = () => {
             onClick={() => setShowLaunchModal(true)}
             className="px-8 py-3 bg-blue-600 text-white rounded-2xl font-bold text-[10px] uppercase tracking-widest shadow-lg shadow-blue-100 hover:bg-blue-700 transition-all flex items-center gap-2 active:scale-95"
           >
-            <DollarSign className="w-4 h-4" /> Novo LanÃ§amento
+            <DollarSign className="w-4 h-4" /> Novo Lançamento
           </button>
         </div>
       </div>
@@ -324,7 +324,7 @@ const GeneralLedger: React.FC = () => {
                   {launchForm.type === 'Receita' ? <TrendingUp className="w-5 h-5" /> : <TrendingDown className="w-5 h-5" />}
                 </div>
                 <div>
-                  <h3 className="text-lg font-black text-gray-900 tracking-tight leading-none mb-1">LanÃ§amento em Lote</h3>
+                  <h3 className="text-lg font-black text-gray-900 tracking-tight leading-none mb-1">Lançamento em Lote</h3>
                   <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">{selectedEntity?.name}</p>
                 </div>
               </div>
@@ -352,7 +352,7 @@ const GeneralLedger: React.FC = () => {
               {/* Grid de Inputs (Compacto) */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                 <div className="sm:col-span-2">
-                  <label className="block text-[10px] font-black text-gray-300 uppercase mb-2 tracking-widest ml-1">Conta ContÃ¡bil</label>
+                  <label className="block text-[10px] font-black text-gray-300 uppercase mb-2 tracking-widest ml-1">Conta Contábil</label>
                   <div className="relative">
                     <select 
                       className="w-full bg-gray-50 border border-gray-100 rounded-xl px-5 py-3.5 focus:ring-4 focus:ring-blue-100 focus:bg-white transition-all appearance-none font-bold text-gray-600 outline-none text-sm"
@@ -431,7 +431,7 @@ const GeneralLedger: React.FC = () => {
                 onClick={handleLaunchSubmit}
                 className={`flex-[2] py-4 rounded-2xl font-black transition-all shadow-lg flex items-center justify-center gap-3 text-sm uppercase tracking-widest ${launchForm.type === 'Receita' ? 'bg-green-600 shadow-green-100 hover:bg-green-700' : 'bg-red-500 shadow-red-100 hover:bg-red-600'} text-white active:scale-95`}
                >
-                 <Save className="w-4 h-4" /> Processar LanÃ§amentos
+                 <Save className="w-4 h-4" /> Processar Lançamentos
                </button>
                <button onClick={() => setShowLaunchModal(false)} className="flex-1 py-4 text-gray-400 font-black text-[10px] uppercase tracking-[0.2em] hover:text-gray-600 transition-colors">Cancelar</button>
             </div>

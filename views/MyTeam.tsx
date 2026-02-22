@@ -1150,7 +1150,7 @@ const MyTeamView: React.FC<MyTeamViewProps> = ({ teamId, userId, userRole }) => 
         <div className="bg-white rounded-[3rem] border border-gray-100 shadow-sm overflow-hidden animate-in slide-in-from-left-4 duration-500">
            <header className="p-8 border-b border-gray-50 bg-gray-50/20">
               <h3 className="text-xl font-black text-gray-900 tracking-tight">Extrato Detalhado</h3>
-              <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest mt-1">Ãšltimos 20 lanÃ§amentos da equipe</p>
+              <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest mt-1">Últimos 20 lançamentos da equipe</p>
            </header>
            <div className="overflow-x-auto no-scrollbar">
               <table className="w-full text-left">
