@@ -23,7 +23,9 @@ import {
   TrendingUp,
   Clock,
   Trash2,
-  Layers
+  Layers,
+  ArrowUpDown,
+  CheckCircle2
 } from 'lucide-react';
 import { api } from '../api';
 import { MemberStatus, UserRoleType, Member, City } from '../types';
@@ -88,6 +90,8 @@ const Members: React.FC = () => {
   const [genderFilter, setGenderFilter] = useState<string>('Todos');
   const [ageGroupFilter, setAgeGroupFilter] = useState<string>('Todos');
   const [mfcTimeFilter, setMfcTimeFilter] = useState<string>('Todos');
+  const [teamFilter, setTeamFilter] = useState<string>('Todos');
+  const [sortBy, setSortBy] = useState<'name-asc' | 'name-desc' | 'mfc-desc' | 'age-desc'>('name-asc');
   const [showFilters, setShowFilters] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [editingMemberId, setEditingMemberId] = useState<string | null>(null);
@@ -192,7 +196,7 @@ const Members: React.FC = () => {
 
   // Lógica de Filtragem Principal
   const filteredMembers = useMemo(() => {
-    return members.filter(m => {
+    const filtered = members.filter(m => {
       // Busca por texto
       const matchesSearch = m.name.toLowerCase().includes(searchTerm.toLowerCase()) || m.phone.includes(searchTerm);
       
@@ -218,15 +222,33 @@ const Members: React.FC = () => {
       else if (yearsMfc > 5) timeRange = '5-10';
       const matchesMfcTime = mfcTimeFilter === 'Todos' || timeRange === mfcTimeFilter;
 
-      return matchesSearch && matchesStatus && matchesGender && matchesAgeGroup && matchesMfcTime;
+      // Filtro por equipe
+      const matchesTeam = teamFilter === 'Todos' || m.teamId === teamFilter || (teamFilter === 'Sem equipe' && !m.teamId);
+
+      return matchesSearch && matchesStatus && matchesGender && matchesAgeGroup && matchesMfcTime && matchesTeam;
     });
-  }, [members, searchTerm, statusFilter, genderFilter, ageGroupFilter, mfcTimeFilter]);
+
+    return [...filtered].sort((a, b) => {
+      switch (sortBy) {
+        case 'name-desc':
+          return b.name.localeCompare(a.name);
+        case 'mfc-desc':
+          return calculateYears(b.mfcDate) - calculateYears(a.mfcDate);
+        case 'age-desc':
+          return calculateYears(b.dob) - calculateYears(a.dob);
+        case 'name-asc':
+        default:
+          return a.name.localeCompare(b.name);
+      }
+    });
+  }, [members, searchTerm, statusFilter, genderFilter, ageGroupFilter, mfcTimeFilter, teamFilter, sortBy]);
 
   const activeFiltersCount = [
     statusFilter !== 'Todos',
     genderFilter !== 'Todos',
     ageGroupFilter !== 'Todos',
-    mfcTimeFilter !== 'Todos'
+    mfcTimeFilter !== 'Todos',
+    teamFilter !== 'Todos'
   ].filter(Boolean).length;
 
   const resetFilters = () => {
@@ -234,10 +256,21 @@ const Members: React.FC = () => {
     setGenderFilter('Todos');
     setAgeGroupFilter('Todos');
     setMfcTimeFilter('Todos');
+    setTeamFilter('Todos');
     setSearchTerm('');
+    setSortBy('name-asc');
   };
 
+  const requiredFields = [formData.name, formData.cpf, formData.phone, formData.dob, formData.mfcDate, formData.city, formData.state];
+  const completionPercentage = Math.round((requiredFields.filter((field) => String(field).trim() !== '').length / requiredFields.length) * 100);
+  const canSave = String(formData.name).trim() && String(formData.phone).trim() && String(formData.cpf).trim();
+
   const handleSave = (saveAndNew: boolean) => {
+    if (!canSave) {
+      toast.error('Preencha ao menos Nome, CPF e Telefone para salvar.');
+      return;
+    }
+
     const payload: Partial<Member> = {
       name: formData.name,
       nickname: formData.nickname,
@@ -712,8 +745,15 @@ const Members: React.FC = () => {
           </div>
         </div>
 
+        <div className="px-6 pb-4 flex flex-wrap gap-2">
+          <button onClick={() => setStatusFilter('Todos')} className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all ${statusFilter === 'Todos' ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'}`}>Todos ({members.length})</button>
+          <button onClick={() => setStatusFilter(MemberStatus.ATIVO)} className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all ${statusFilter === MemberStatus.ATIVO ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white text-emerald-700 border-emerald-200 hover:bg-emerald-50'}`}>Ativos ({members.filter((m) => m.status === MemberStatus.ATIVO).length})</button>
+          <button onClick={() => setStatusFilter(MemberStatus.AGUARDANDO)} className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all ${statusFilter === MemberStatus.AGUARDANDO ? 'bg-amber-500 text-white border-amber-500' : 'bg-white text-amber-700 border-amber-200 hover:bg-amber-50'}`}>Aguardando ({members.filter((m) => m.status === MemberStatus.AGUARDANDO).length})</button>
+          <button onClick={() => setTeamFilter('Sem equipe')} className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all ${teamFilter === 'Sem equipe' ? 'bg-purple-600 text-white border-purple-600' : 'bg-white text-purple-700 border-purple-200 hover:bg-purple-50'}`}>Sem Equipe ({members.filter((m) => !m.teamId).length})</button>
+        </div>
+
         {/* Gaveta de Filtros */}
-        <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 px-6 pb-8 border-t border-gray-50 transition-all duration-500 ${showFilters ? 'max-h-96 opacity-100 py-8' : 'max-h-0 opacity-0 py-0 invisible'}`}>
+        <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-6 px-6 pb-8 border-t border-gray-50 transition-all duration-500 ${showFilters ? 'max-h-[520px] opacity-100 py-8' : 'max-h-0 opacity-0 py-0 invisible'}`}>
           <div className="space-y-2">
             <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1 flex items-center gap-2">
               <Shield className="w-3 h-3" /> Status do Membro
@@ -774,6 +814,37 @@ const Members: React.FC = () => {
               <option value="5-10">Integrados (5-10 anos)</option>
               <option value="10-25">Experientes (10-25 anos)</option>
               <option value="25+">Veteranos (25+ anos)</option>
+            </select>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1 flex items-center gap-2">
+              <Layers className="w-3 h-3" /> Equipe
+            </label>
+            <select
+              className="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 text-xs font-bold text-gray-600 outline-none focus:ring-4 focus:ring-blue-50 transition-all"
+              value={teamFilter}
+              onChange={(e) => setTeamFilter(e.target.value)}
+            >
+              <option value="Todos">Todas as Equipes</option>
+              <option value="Sem equipe">Sem Equipe</option>
+              {teams.map((team) => <option key={team.id} value={team.id}>{team.name}</option>)}
+            </select>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1 flex items-center gap-2">
+              <ArrowUpDown className="w-3 h-3" /> Ordenação
+            </label>
+            <select
+              className="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 text-xs font-bold text-gray-600 outline-none focus:ring-4 focus:ring-blue-50 transition-all"
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
+            >
+              <option value="name-asc">Nome (A-Z)</option>
+              <option value="name-desc">Nome (Z-A)</option>
+              <option value="mfc-desc">Mais tempo de MFC</option>
+              <option value="age-desc">Maior idade</option>
             </select>
           </div>
         </div>
@@ -971,7 +1042,7 @@ const Members: React.FC = () => {
       {/* Modal Novo Membro com Abas */}
       {showModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 bg-slate-900/70 backdrop-blur-sm overflow-hidden">
-          <div className="bg-white w-full max-w-5xl max-h-[90vh] sm:rounded-[2.5rem] shadow-2xl flex flex-col animate-in slide-in-from-bottom-5 duration-400 overflow-hidden border border-gray-100">
+          <div className="bg-white w-full max-w-6xl max-h-[94vh] sm:rounded-[2.5rem] shadow-2xl flex flex-col animate-in slide-in-from-bottom-5 duration-400 overflow-hidden border border-gray-100">
             {/* Header */}
             <div className="px-8 py-5 border-b border-gray-50 flex items-center justify-between bg-gradient-to-r from-blue-50 to-white z-20">
               <div className="flex items-center gap-4">
@@ -990,6 +1061,15 @@ const Members: React.FC = () => {
 
             {/* Tabs Navigation */}
             <div className="px-8 pt-4 border-b border-gray-100 bg-white z-10">
+              <div className="mb-4 p-3 rounded-2xl bg-slate-50 border border-slate-100">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Progresso do cadastro</p>
+                  <p className="text-xs font-black text-blue-700 inline-flex items-center gap-1"><CheckCircle2 className="w-3.5 h-3.5" />{completionPercentage}%</p>
+                </div>
+                <div className="h-2 bg-white rounded-full overflow-hidden border border-slate-200">
+                  <div className="h-full bg-gradient-to-r from-blue-500 to-cyan-500 transition-all" style={{ width: `${completionPercentage}%` }}></div>
+                </div>
+              </div>
               <div className="flex gap-2 overflow-x-auto no-scrollbar">
                 <button
                   onClick={() => setActiveTab('pessoal')}
@@ -1223,7 +1303,7 @@ const Members: React.FC = () => {
             </div>
 
             {/* Footer */}
-            <div className="px-8 py-5 bg-white border-t border-gray-50 flex flex-col sm:flex-row items-center justify-between gap-3 z-20">
+            <div className="px-8 py-5 bg-white border-t border-gray-50 flex flex-col sm:flex-row items-center justify-between gap-3 z-20 sticky bottom-0">
               <div className="flex gap-2">
                 {activeTab !== 'pessoal' && (
                   <button 
@@ -1252,8 +1332,8 @@ const Members: React.FC = () => {
               </div>
               <div className="flex gap-3">
                 <button onClick={() => setShowModal(false)} className="px-5 py-2 text-gray-400 font-black text-[9px] uppercase tracking-[0.2em] hover:text-red-500 transition-colors">Cancelar</button>
-                <button onClick={() => handleSave(true)} className="bg-gray-50 border border-gray-100 text-gray-500 px-6 py-2.5 rounded-xl font-black text-[9px] uppercase tracking-widest hover:bg-gray-100 transition-all">Salvar e Criar Outro</button>
-                <button onClick={() => handleSave(false)} className="bg-blue-600 text-white px-10 py-2.5 rounded-xl font-black text-[10px] shadow-lg shadow-blue-50 hover:bg-blue-700 transition-all active:scale-95 uppercase tracking-widest"><Save className="w-4 h-4 inline mr-2" /> Salvar</button>
+                <button onClick={() => handleSave(true)} disabled={!canSave} className="bg-gray-50 border border-gray-100 text-gray-500 px-6 py-2.5 rounded-xl font-black text-[9px] uppercase tracking-widest hover:bg-gray-100 transition-all disabled:opacity-50 disabled:cursor-not-allowed">Salvar e Criar Outro</button>
+                <button onClick={() => handleSave(false)} disabled={!canSave} className="bg-blue-600 text-white px-10 py-2.5 rounded-xl font-black text-[10px] shadow-lg shadow-blue-50 hover:bg-blue-700 transition-all active:scale-95 uppercase tracking-widest disabled:bg-slate-300 disabled:shadow-none disabled:cursor-not-allowed"><Save className="w-4 h-4 inline mr-2" /> Salvar</button>
               </div>
             </div>
           </div>
@@ -1381,7 +1461,6 @@ const Members: React.FC = () => {
 };
 
 export default Members;
-
 
 
 
