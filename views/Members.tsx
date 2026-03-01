@@ -548,7 +548,7 @@ const Members: React.FC = () => {
 
       {/* Estatísticas (Fixo para a Unidade) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-        <div className="bg-white p-5 sm:p-6 rounded-2xl sm:rounded-[2.5rem] border border-gray-100 shadow-sm group">
+        <div className="bg-white p-5 sm:p-6 rounded-2xl sm:rounded-3xl border border-gray-100 shadow-sm group">
           <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">Perfil por Gênero</h4>
           <div className="space-y-3">
              <div className="flex items-center justify-between">
@@ -568,7 +568,7 @@ const Members: React.FC = () => {
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-[2.5rem] border border-gray-100 shadow-sm group">
+        <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm group">
           <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">Base da Pirâmide</h4>
           <div className="grid grid-cols-2 gap-4">
              <div className="p-4 bg-amber-50 rounded-3xl border border-amber-100/50">
@@ -584,7 +584,7 @@ const Members: React.FC = () => {
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-[2.5rem] border border-gray-100 shadow-sm group">
+        <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm group">
           <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">Experiência</h4>
           <div className="grid grid-cols-2 gap-4">
              <div className="p-4 bg-emerald-50 rounded-3xl border border-emerald-100/50">
@@ -600,7 +600,7 @@ const Members: React.FC = () => {
           </div>
         </div>
 
-        <div className="bg-blue-600 p-6 rounded-[2.5rem] shadow-2xl shadow-blue-100 relative overflow-hidden group">
+        <div className="bg-blue-600 p-6 rounded-3xl shadow-2xl shadow-blue-100 relative overflow-hidden group">
           <div className="absolute -right-6 -bottom-6 opacity-10 rotate-12 group-hover:rotate-0 transition-transform duration-700">
              <PieIcon className="w-32 h-32 text-white" />
           </div>
@@ -708,7 +708,7 @@ const Members: React.FC = () => {
       })()}
 
       {/* Painel de Filtros Avançados */}
-      <div className="bg-white rounded-[2.5rem] border border-gray-100 shadow-sm overflow-hidden transition-all duration-500">
+      <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden transition-all duration-500">
         <div className="p-6 flex flex-col md:flex-row gap-4 items-center">
           <div className="relative flex-1 w-full group">
             <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-300 w-5 h-5 group-focus-within:text-blue-500 transition-colors" />
@@ -1042,7 +1042,7 @@ const Members: React.FC = () => {
       {/* Modal Novo Membro com Abas */}
       {showModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 bg-slate-900/70 backdrop-blur-sm overflow-hidden">
-          <div className="bg-white w-full max-w-6xl max-h-[94vh] sm:rounded-[2.5rem] shadow-2xl flex flex-col animate-in slide-in-from-bottom-5 duration-400 overflow-hidden border border-gray-100">
+          <div className="bg-white w-full max-w-6xl max-h-[94vh] sm:rounded-3xl shadow-2xl flex flex-col animate-in slide-in-from-bottom-5 duration-400 overflow-hidden border border-gray-100">
             {/* Header */}
             <div className="px-8 py-5 border-b border-gray-50 flex items-center justify-between bg-gradient-to-r from-blue-50 to-white z-20">
               <div className="flex items-center gap-4">

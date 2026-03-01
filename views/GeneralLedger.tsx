@@ -206,7 +206,7 @@ const GeneralLedger: React.FC = () => {
           <div 
             key={entity.id} 
             onClick={() => { setSelectedEntityId(entity.id); setView('detail'); }}
-            className="bg-white rounded-[2.5rem] border border-gray-100 shadow-sm hover:shadow-2xl hover:-translate-y-2 transition-all cursor-pointer group flex flex-col overflow-hidden relative"
+            className="bg-white rounded-3xl border border-gray-100 shadow-sm hover:shadow-2xl hover:-translate-y-2 transition-all cursor-pointer group flex flex-col overflow-hidden relative"
           >
             <div className="p-10 flex-1 relative z-10">
               <div className="flex items-center justify-between mb-8">
@@ -275,7 +275,7 @@ const GeneralLedger: React.FC = () => {
         </div>
       </div>
 
-      <div className="bg-white rounded-[2.5rem] border border-gray-100 shadow-2xl flex-1 overflow-hidden flex flex-col">
+      <div className="bg-white rounded-3xl border border-gray-100 shadow-2xl flex-1 overflow-hidden flex flex-col">
         <div className="p-6 border-b border-gray-100 bg-gray-50/60 grid grid-cols-1 lg:grid-cols-4 gap-3">
           <div className="bg-white rounded-xl border border-gray-100 p-4">
             <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Saldo inicial</p>
@@ -376,8 +376,8 @@ const GeneralLedger: React.FC = () => {
 
       {/* MODAL NOVO LIVRO CAIXA */}
       {showEntityModal && (
-        <div className="fixed inset-0 z-[250] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
-           <div className="bg-white w-full max-w-lg rounded-[2.5rem] shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-300">
+        <div className="fixed inset-0 z-[250] flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm">
+           <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-300">
               <div className="p-8 border-b border-gray-50 flex items-center justify-between">
                  <div className="flex items-center gap-4">
                     <div className="w-12 h-12 bg-blue-600 rounded-2xl flex items-center justify-center text-white shadow-lg">
@@ -414,7 +414,7 @@ const GeneralLedger: React.FC = () => {
       {/* MODAL DE LANÇAMENTO EM LOTE - REDESENHADO (SOFISTICADO & COMPACTO) */}
       {showLaunchModal && (
         <div className="fixed inset-0 z-[250] flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm overflow-y-auto">
-          <div className="bg-white w-full max-w-xl rounded-[2.5rem] shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-bottom-5 duration-400 border border-gray-100">
+          <div className="bg-white w-full max-w-xl rounded-3xl shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-bottom-5 duration-400 border border-gray-100">
             
             {/* Header Reduzido */}
             <div className="p-6 sm:p-8 border-b border-gray-50 flex items-center justify-between bg-white sticky top-0 z-20">

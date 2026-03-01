@@ -302,7 +302,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({ initialTab = 'permissoes' }
               </button>
             </div>
             
-            <div className="bg-white rounded-[2rem] border border-gray-100 shadow-sm p-3 space-y-2">
+            <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-3 space-y-2">
               {roles.map(role => (
                 <button
                   key={role.id}
@@ -320,7 +320,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({ initialTab = 'permissoes' }
           </div>
 
           {/* Matriz de Permissões */}
-          <div className="flex-1 bg-white rounded-[2.5rem] border border-gray-100 shadow-sm overflow-hidden flex flex-col">
+          <div className="flex-1 bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden flex flex-col">
             <div className="p-8 border-b border-gray-50 flex items-center justify-between bg-white sticky top-0 z-10">
               <div>
                 <h3 className="text-xl font-black text-gray-900 tracking-tight">Configurar: {selectedRole?.name}</h3>
@@ -458,7 +458,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({ initialTab = 'permissoes' }
             {filteredCities.map(city => (
               <div 
                 key={city.id} 
-                className={`bg-white p-7 rounded-[2.5rem] border border-gray-100 shadow-sm flex flex-col group hover:shadow-xl transition-all relative overflow-hidden ${!city.active ? 'bg-gray-50/50' : ''}`}
+                className={`bg-white p-7 rounded-3xl border border-gray-100 shadow-sm flex flex-col group hover:shadow-xl transition-all relative overflow-hidden ${!city.active ? 'bg-gray-50/50' : ''}`}
               >
                 <div className="flex items-center justify-between mb-6">
                   <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all shadow-inner ${city.active ? 'bg-blue-50 text-blue-600' : 'bg-gray-200 text-gray-400'}`}>
@@ -514,8 +514,8 @@ const SettingsView: React.FC<SettingsViewProps> = ({ initialTab = 'permissoes' }
 
       {/* MODAL NOVO PERFIL / PERMISSÃO */}
       {showRoleModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
-          <div className="bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl flex flex-col overflow-hidden border border-gray-100 animate-in zoom-in-95 duration-500">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-slate-900/70 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className="bg-white w-full max-w-md rounded-3xl shadow-2xl flex flex-col overflow-hidden border border-gray-100 animate-in zoom-in-95 duration-500">
             <div className="p-10 border-b border-gray-50 text-center">
               <div className="w-16 h-16 bg-blue-600 rounded-3xl flex items-center justify-center text-white mx-auto shadow-xl mb-6">
                 <Shield className="w-8 h-8" />
@@ -554,8 +554,8 @@ const SettingsView: React.FC<SettingsViewProps> = ({ initialTab = 'permissoes' }
 
       {/* MODAL CIDADE (CADASTRO / EDIÃ‡ÃO) */}
       {showCityModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
-          <div className="bg-white w-full max-w-lg rounded-[2.5rem] shadow-2xl flex flex-col overflow-hidden border border-gray-100 animate-in zoom-in-95 duration-500">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-slate-900/70 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl flex flex-col overflow-hidden border border-gray-100 animate-in zoom-in-95 duration-500">
             <div className="px-8 py-8 border-b border-gray-50 flex items-center justify-between">
               <div className="flex items-center gap-4">
                 <div className="w-12 h-12 bg-blue-600 rounded-2xl flex items-center justify-center text-white shadow-xl shadow-blue-100">
@@ -625,8 +625,8 @@ const SettingsView: React.FC<SettingsViewProps> = ({ initialTab = 'permissoes' }
 
       {/* MODAL EXCLUSÃO (BLINDADO) */}
       {showDeleteModal && cityToDelete && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-slate-900/80 backdrop-blur-md animate-in fade-in duration-300">
-          <div className="bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl flex flex-col overflow-hidden border border-red-100 animate-in zoom-in-95 duration-500">
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-slate-900/70 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className="bg-white w-full max-w-md rounded-3xl shadow-2xl flex flex-col overflow-hidden border border-red-100 animate-in zoom-in-95 duration-500">
             <div className="p-8 text-center space-y-6">
               <div className="w-20 h-20 bg-red-50 text-red-500 rounded-3xl flex items-center justify-center mx-auto shadow-inner">
                 <AlertTriangle className="w-10 h-10" />
@@ -676,7 +676,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({ initialTab = 'permissoes' }
 
       {activeTab === 'financeiro' && (
         <div className="animate-in slide-in-from-right-4 duration-500">
-          <div className="bg-white rounded-[2rem] border border-gray-100 shadow-sm p-8 lg:p-10 space-y-8">
+          <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-8 lg:p-10 space-y-8">
             <div className="flex items-start gap-4">
               <div className="w-14 h-14 bg-emerald-50 rounded-2xl flex items-center justify-center text-emerald-600 shrink-0">
                 <DollarSign className="w-7 h-7" />

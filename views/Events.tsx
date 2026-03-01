@@ -344,7 +344,7 @@ const EventsView: React.FC = () => {
         {filteredEvents.map(event => {
           const stats = getEventStats(event);
           return (
-            <div key={event.id} className="bg-white rounded-[2.5rem] border border-gray-100 shadow-sm overflow-hidden flex flex-col group hover:shadow-2xl transition-all border-l-8 border-l-blue-600">
+            <div key={event.id} className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden flex flex-col group hover:shadow-2xl transition-all border-l-8 border-l-blue-600">
               <div className="p-8 space-y-6 flex-1">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-4">
@@ -423,8 +423,8 @@ const EventsView: React.FC = () => {
       </div>
 
       {showSaleModal && selectedEventForSale && (
-        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-          <div className="bg-white w-full max-w-2xl rounded-3xl shadow-2xl border border-gray-100 overflow-hidden">
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm">
+          <div className="bg-white w-full max-w-2xl rounded-3xl shadow-2xl border border-slate-100 overflow-hidden">
             <div className="px-6 py-5 border-b border-gray-100 flex items-center justify-between">
               <div>
                 <h3 className="text-lg font-black text-gray-900">Adicionar venda</h3>
@@ -544,17 +544,17 @@ const EventsView: React.FC = () => {
       )}
       {/* MODAL NOVO EVENTO / EDICAO - VERSAO MELHORADA COM TABS */}
       {showModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-2 sm:p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
-          <div className="bg-white w-full max-w-5xl rounded-3xl shadow-2xl flex flex-col overflow-hidden border border-gray-100 animate-in zoom-in-95 duration-500 max-h-[95vh]">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 bg-slate-900/70 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className="bg-white w-full max-w-4xl rounded-3xl shadow-2xl flex flex-col overflow-hidden border border-slate-100 animate-in zoom-in-95 duration-500 max-h-[90vh]">
             
             {/* Header */}
-            <div className="px-6 sm:px-8 py-6 border-b border-gray-100 flex items-center justify-between bg-gradient-to-r from-blue-50 to-white">
+            <div className="px-5 sm:px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-gradient-to-r from-blue-50 to-white">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-blue-600 rounded-xl flex items-center justify-center text-white shadow-lg">
+                <div className="w-9 h-9 sm:w-10 sm:h-10 bg-blue-600 rounded-lg flex items-center justify-center text-white shadow-lg">
                   <Ticket className="w-5 h-5 sm:w-6 sm:h-6" />
                 </div>
                 <div>
-                  <h3 className="text-lg sm:text-xl font-black text-gray-900">{editingEventId ? 'Editar Evento' : 'Novo Evento'}</h3>
+                  <h3 className="text-lg sm:text-xl font-black text-gray-900">{editingEventId ? 'Editar evento' : 'Novo evento'}</h3>
                   <p className="text-[9px] sm:text-[10px] text-gray-400 font-bold uppercase tracking-widest">Configure todos os detalhes</p>
                 </div>
               </div>
@@ -564,33 +564,38 @@ const EventsView: React.FC = () => {
             </div>
 
             {/* Tabs Navigation */}
-            <div className="flex border-b border-gray-100 bg-gray-50 px-6 sm:px-8 overflow-x-auto no-scrollbar">
+            <div className="flex border-b border-gray-100 bg-gray-50 px-4 sm:px-6 overflow-x-auto no-scrollbar gap-2">
               <button 
                 onClick={() => setActiveTab('basic')}
-                className={`px-4 sm:px-6 py-4 text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all border-b-2 whitespace-nowrap ${activeTab === 'basic' ? 'border-blue-600 text-blue-600 bg-white' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
+                className={`px-3 sm:px-4 py-3 text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all border-b-2 whitespace-nowrap rounded-t-lg ${activeTab === 'basic' ? 'border-blue-600 text-blue-600 bg-white' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
               >
-                Dados Basicos
+                Dados básicos
               </button>
               <button 
                 onClick={() => setActiveTab('expenses')}
-                className={`px-4 sm:px-6 py-4 text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all border-b-2 whitespace-nowrap ${activeTab === 'expenses' ? 'border-blue-600 text-blue-600 bg-white' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
+                className={`px-3 sm:px-4 py-3 text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all border-b-2 whitespace-nowrap rounded-t-lg ${activeTab === 'expenses' ? 'border-blue-600 text-blue-600 bg-white' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
               >
                 Gastos
               </button>
               <button 
                 onClick={() => setActiveTab('goals')}
-                className={`px-4 sm:px-6 py-4 text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all border-b-2 whitespace-nowrap ${activeTab === 'goals' ? 'border-blue-600 text-blue-600 bg-white' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
+                className={`px-3 sm:px-4 py-3 text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all border-b-2 whitespace-nowrap rounded-t-lg ${activeTab === 'goals' ? 'border-blue-600 text-blue-600 bg-white' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
               >
                 Metas
               </button>
             </div>
 
             {/* Tab Content */}
-            <div className="p-6 sm:p-8 overflow-y-auto flex-1">
+            <div className="p-4 sm:p-5 overflow-y-auto flex-1">
               
               {/* ABA: DADOS BASICOS */}
               {activeTab === 'basic' && (
-                <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+                <div className="space-y-5 animate-in fade-in slide-in-from-right-4 duration-300">
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="bg-blue-50 border border-blue-100 rounded-xl p-3"><p className="text-[9px] font-black uppercase tracking-widest text-blue-500">Receita potencial</p><p className="text-sm font-black text-blue-700 mt-1">R$ {potentialRevenue.toFixed(2)}</p></div>
+                    <div className="bg-red-50 border border-red-100 rounded-xl p-3"><p className="text-[9px] font-black uppercase tracking-widest text-red-500">Gastos atuais</p><p className="text-sm font-black text-red-600 mt-1">R$ {totalExpenses.toFixed(2)}</p></div>
+                    <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-3"><p className="text-[9px] font-black uppercase tracking-widest text-emerald-600">Meta</p><p className="text-sm font-black text-emerald-700 mt-1">R$ {Number(formData.goalValue || 0).toFixed(2)}</p></div>
+                  </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
                     <div className="md:col-span-2">
                       <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">Nome do Evento *</label>
@@ -619,7 +624,7 @@ const EventsView: React.FC = () => {
                         <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                         <input 
                           type="text" 
-                          placeholder="Ex: Salao Paroquial" 
+                          placeholder="Ex: Salão Paroquial" 
                           className="w-full pl-11 pr-4 py-3 sm:py-4 bg-gray-50 border border-gray-200 rounded-xl text-sm font-bold text-gray-700 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none" 
                           value={formData.location} 
                           onChange={e => setFormData({...formData, location: e.target.value})} 
@@ -628,9 +633,9 @@ const EventsView: React.FC = () => {
                     </div>
 
                     <div className="md:col-span-2">
-                      <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">Descricao</label>
+                      <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">Descrição</label>
                       <textarea 
-                        placeholder="Descreva o evento, objetivo, programacao..." 
+                        placeholder="Descreva o evento, objetivo e programação..." 
                         className="w-full px-4 py-3 sm:px-5 sm:py-4 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium text-gray-700 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none resize-none" 
                         rows={3}
                         value={formData.description} 
@@ -639,7 +644,7 @@ const EventsView: React.FC = () => {
                     </div>
 
                     <div>
-                      <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">Responsavel</label>
+                      <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">Responsável</label>
                       <div className="relative">
                         <User className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                         <input 
@@ -712,7 +717,7 @@ const EventsView: React.FC = () => {
               {activeTab === 'expenses' && (
                 <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
                   <div className="flex items-center justify-between">
-                    <h4 className="text-sm font-black text-gray-800">Detalhamento de Custos</h4>
+                    <h4 className="text-sm font-black text-gray-800">Detalhamento de custos</h4>
                     <div className="px-4 py-2 bg-red-50 rounded-xl border border-red-100">
                       <span className="text-[10px] font-black text-red-600 uppercase">Total: R$ {totalExpenses.toFixed(2)}</span>
                     </div>
@@ -723,7 +728,7 @@ const EventsView: React.FC = () => {
                       <div className="sm:col-span-6">
                         <input 
                           type="text" 
-                          placeholder="Descricao do gasto..." 
+                          placeholder="Descrição do gasto..." 
                           className="w-full px-4 py-3 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-700 outline-none focus:ring-2 focus:ring-blue-500"
                           value={newExpense.description}
                           onChange={e => setNewExpense({...newExpense, description: e.target.value})}
@@ -830,7 +835,7 @@ const EventsView: React.FC = () => {
             </div>
 
             {/* Footer */}
-            <div className="px-6 sm:px-8 py-5 bg-gray-50 border-t border-gray-100 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="px-5 sm:px-6 py-4 bg-gray-50 border-t border-gray-100 flex flex-col sm:flex-row items-center justify-between gap-3 sticky bottom-0">
               <button 
                 onClick={() => setShowModal(false)} 
                 className="text-xs font-black text-gray-400 uppercase tracking-widest hover:text-red-500 transition-colors order-2 sm:order-1"

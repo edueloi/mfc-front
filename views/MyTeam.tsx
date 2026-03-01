@@ -618,7 +618,7 @@ const MyTeamView: React.FC<MyTeamViewProps> = ({ teamId, userId, userRole }) => 
               return (
                 <div
                   key={idx}
-                  className={`bg-white rounded-2xl md:rounded-[2.5rem] p-4 md:p-6 lg:p-8 border-2 transition-all ${
+                  className={`bg-white rounded-2xl md:rounded-3xl p-4 md:p-6 lg:p-8 border-2 transition-all ${
                     isLate ? 'border-red-100 hover:border-red-300' : 'border-emerald-100 hover:border-emerald-300'
                   } ${isExpanded ? 'shadow-2xl' : 'hover:shadow-2xl'}`}
                 >
@@ -890,7 +890,7 @@ const MyTeamView: React.FC<MyTeamViewProps> = ({ teamId, userId, userRole }) => 
       {activeTab === 'membros' && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-6">
           {membersState.map(m => (
-            <div key={m.id} className="bg-white p-4 md:p-6 rounded-2xl md:rounded-[2.5rem] border border-gray-100 shadow-sm hover:shadow-2xl transition-all cursor-pointer group" onClick={() => navigate(`/mfcistas/${m.id}`)}>
+            <div key={m.id} className="bg-white p-4 md:p-6 rounded-2xl md:rounded-3xl border border-gray-100 shadow-sm hover:shadow-2xl transition-all cursor-pointer group" onClick={() => navigate(`/mfcistas/${m.id}`)}>
               <div className="flex items-center gap-2 md:gap-4 mb-4 md:mb-6">
                 <div className="w-12 h-12 md:w-14 md:h-14 rounded-xl md:rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center font-black text-lg md:text-xl group-hover:bg-blue-600 group-hover:text-white transition-all flex-shrink-0">
                   {m.name.substring(0, 1)}
@@ -927,7 +927,7 @@ const MyTeamView: React.FC<MyTeamViewProps> = ({ teamId, userId, userRole }) => 
 
           {/* RESUMO E FILTROS */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 md:gap-6">
-             <div className="bg-white p-4 md:p-8 rounded-2xl md:rounded-[2.5rem] border border-gray-100 shadow-sm space-y-4 md:space-y-6">
+             <div className="bg-white p-4 md:p-8 rounded-2xl md:rounded-3xl border border-gray-100 shadow-sm space-y-4 md:space-y-6">
                 <h3 className="text-base md:text-xl font-black text-gray-900 tracking-tight">Filtro de Visão</h3>
                 <div className="grid grid-cols-2 gap-2 md:gap-4">
                   <div className="space-y-1">
@@ -968,7 +968,7 @@ const MyTeamView: React.FC<MyTeamViewProps> = ({ teamId, userId, userRole }) => 
                 </div>
              </div>
 
-             <div className="bg-emerald-600 p-4 md:p-8 rounded-2xl md:rounded-[2.5rem] text-white shadow-xl shadow-emerald-100 relative overflow-hidden group">
+             <div className="bg-emerald-600 p-4 md:p-8 rounded-2xl md:rounded-3xl text-white shadow-xl shadow-emerald-100 relative overflow-hidden group">
                 <TrendingUp className="absolute -right-4 -bottom-4 w-24 h-24 md:w-32 md:h-32 opacity-10 group-hover:scale-110 transition-transform" />
                 <p className="text-[9px] md:text-[10px] font-black text-emerald-200 uppercase tracking-[0.2em] mb-1">Arrecadado em {monthNames[viewMonth-1]}</p>
                 <h3 className="text-2xl md:text-4xl font-black tracking-tighter leading-none">R$ {financeStats.monthlyTotal.toFixed(2)}</h3>
@@ -978,7 +978,7 @@ const MyTeamView: React.FC<MyTeamViewProps> = ({ teamId, userId, userRole }) => 
                 </div>
              </div>
 
-             <div className="bg-white p-4 md:p-8 rounded-2xl md:rounded-[2.5rem] border border-red-100 shadow-xl shadow-red-50 relative overflow-hidden group">
+             <div className="bg-white p-4 md:p-8 rounded-2xl md:rounded-3xl border border-red-100 shadow-xl shadow-red-50 relative overflow-hidden group">
                 <AlertTriangle className="absolute -right-4 -bottom-4 w-24 h-24 md:w-32 md:h-32 text-red-500 opacity-5 group-hover:scale-110 transition-transform" />
                 <p className="text-[9px] md:text-[10px] font-black text-red-400 uppercase tracking-[0.2em] mb-1">Pendências Acumuladas</p>
                 <h3 className="text-2xl md:text-4xl font-black text-red-600 tracking-tighter leading-none">R$ {financeStats.pendingAmount.toFixed(2)}</h3>
@@ -1198,7 +1198,7 @@ const MyTeamView: React.FC<MyTeamViewProps> = ({ teamId, userId, userRole }) => 
 
       {/* MODAL MULTI-MESES - ZÃ‰, AQUI Ã‰ ONDE VOCÃŠ MARCA TUDO DE UMA VEZ */}
       {showPayModal && selectedForPayment && (
-          <div className="fixed inset-0 z-[500] flex items-center justify-center p-6 bg-slate-900/70 backdrop-blur-md animate-in fade-in duration-300">
+          <div className="fixed inset-0 z-[500] flex items-center justify-center p-4 sm:p-6 bg-slate-900/70 backdrop-blur-sm animate-in fade-in duration-300">
             <div className="bg-white w-full max-w-xl rounded-2xl shadow-2xl flex flex-col overflow-hidden border border-gray-100 animate-in zoom-in-95 duration-500">
                 <div className="p-5 border-b border-gray-50 bg-white text-center flex flex-col items-center gap-3">
                     <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center shadow-inner">
@@ -1312,9 +1312,9 @@ const MyTeamView: React.FC<MyTeamViewProps> = ({ teamId, userId, userRole }) => 
 
       {/* MODAL DE CRIAÇÃO/EDIÇÃO DE FAMÍLIAS */}
       {showFamilyModal && (
-        <div className="fixed inset-0 z-[500] flex items-center justify-center p-6 bg-slate-900/70 backdrop-blur-md animate-in fade-in duration-300">
-          <div className="bg-white w-full max-w-4xl rounded-3xl shadow-2xl flex flex-col overflow-hidden border-2 border-purple-100 animate-in zoom-in-95 duration-500">
-            <div className="p-8 border-b-2 border-purple-100 bg-gradient-to-r from-purple-50 to-pink-50">
+        <div className="fixed inset-0 z-[500] flex items-center justify-center p-4 sm:p-6 bg-slate-900/70 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className="bg-white w-full max-w-4xl rounded-3xl shadow-2xl flex flex-col overflow-hidden border border-slate-100 animate-in zoom-in-95 duration-500">
+            <div className="p-8 border-b border-slate-100 bg-gradient-to-r from-purple-50 to-pink-50">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
                   <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-pink-500 text-white rounded-2xl flex items-center justify-center shadow-xl">
@@ -1503,6 +1503,5 @@ const MyTeamView: React.FC<MyTeamViewProps> = ({ teamId, userId, userRole }) => 
 };
 
 export default MyTeamView;
-
 
 
