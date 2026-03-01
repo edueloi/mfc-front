@@ -14,7 +14,8 @@ import {
   DollarSign,
   BookOpen,
   Ticket,
-  Heart
+  Heart,
+  FileText
 } from 'lucide-react';
 import { UserRoleType, User as UserType, City } from '../types';
 import { api } from '../api';
@@ -62,6 +63,12 @@ const Layout: React.FC<LayoutProps> = ({ currentUser, onLogout }) => {
 
   const navigation: NavItem[] = [
     { name: 'Dashboard', icon: LayoutDashboard, path: '/' },
+    {
+      name: 'Relatórios',
+      icon: FileText,
+      path: '/relatorios',
+      roles: [UserRoleType.ADMIN, UserRoleType.COORD_CIDADE, UserRoleType.COORD_ESTADO, UserRoleType.TESOUREIRO]
+    },
     { 
       name: 'MFCistas', 
       icon: Users, 

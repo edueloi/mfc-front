@@ -14,6 +14,7 @@ import FinanceView from './views/Finance';
 import GeneralLedger from './views/GeneralLedger';
 import EventsView from './views/Events';
 import Login from './views/Login';
+import Reports from './views/Reports';
 import { User as UserType } from './types';
 
 const App: React.FC = () => {
@@ -100,6 +101,7 @@ const App: React.FC = () => {
       <Routes>
         <Route path="/" element={<Layout currentUser={currentUser} onLogout={handleLogout} />}>
           <Route index element={<Dashboard />} />
+          <Route path="relatorios" element={<Reports />} />
           <Route path="mfcistas" element={<Members />} />
           <Route path="mfcistas/:memberId" element={<MemberProfile />} />
           <Route path="equipes" element={<Teams />} />

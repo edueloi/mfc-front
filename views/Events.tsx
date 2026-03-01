@@ -40,6 +40,9 @@ const EventsView: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'basic' | 'expenses' | 'goals'>('basic');
   const [showSaleModal, setShowSaleModal] = useState(false);
   const [selectedEventForSale, setSelectedEventForSale] = useState<Event | null>(null);
+  const [eventSearch, setEventSearch] = useState('');
+  const [eventStatusFilter, setEventStatusFilter] = useState<'all' | 'active' | 'closed'>('all');
+  const [eventSortBy, setEventSortBy] = useState<'date' | 'progress' | 'name'>('date');
 
   const [formData, setFormData] = useState({
     name: '',
@@ -237,6 +240,58 @@ const EventsView: React.FC = () => {
     setEditingEventId(null);
   };
 
+  const handleEditEvent = (event: Event) => {
+    setEditingEventId(event.id);
+    setActiveTab('basic');
+    setFormData({
+      name: event.name,
+      date: event.date,
+      location: (event as any).location || '',
+      description: (event as any).description || '',
+      responsible: (event as any).responsible || '',
+      goalValue: Number(event.goalValue) || 0,
+      showOnDashboard: Boolean(event.showOnDashboard),
+      ticketQuantity: Number(event.ticketQuantity) || 0,
+      ticketValue: Number(event.ticketValue) || 0,
+      expenses: event.expenses || [],
+      teamQuotas: event.teamQuotas || teams.map(t => ({ teamId: t.id, quotaValue: 0 }))
+    });
+    setShowModal(true);
+  };
+
+  const handleDeleteEvent = (eventId: string) => {
+    if (!window.confirm('Deseja realmente inativar este evento?')) return;
+    api.updateEvent(eventId, { isActive: false })
+      .then(() => loadData())
+      .catch(() => alert('Não foi possível inativar o evento.'));
+  };
+
+  const filteredEvents = useMemo(() => {
+    return events
+      .filter((event) => event.name.toLowerCase().includes(eventSearch.toLowerCase()))
+      .filter((event) => {
+        if (eventStatusFilter === 'active') return event.isActive;
+        if (eventStatusFilter === 'closed') return !event.isActive;
+        return true;
+      })
+      .sort((a, b) => {
+        if (eventSortBy === 'name') return a.name.localeCompare(b.name);
+        if (eventSortBy === 'progress') return getEventStats(b).progress - getEventStats(a).progress;
+        return new Date(b.date).getTime() - new Date(a.date).getTime();
+      });
+  }, [events, eventSearch, eventStatusFilter, eventSortBy, eventSales]);
+
+  const globalStats = useMemo(() => {
+    return filteredEvents.reduce((acc, event) => {
+      const stats = getEventStats(event);
+      acc.raised += stats.raised;
+      acc.goal += Number(event.goalValue) || 0;
+      acc.net += stats.netProfit;
+      acc.tickets += stats.ticketsSold;
+      return acc;
+    }, { raised: 0, goal: 0, net: 0, tickets: 0 });
+  }, [filteredEvents, eventSales]);
+
   return (
     <div className="space-y-8 animate-in fade-in duration-700 pb-20">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 px-2 lg:px-0">
@@ -270,11 +325,26 @@ const EventsView: React.FC = () => {
         </button>
       </div>
 
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 px-2 lg:px-0">
+        <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm"><p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Eventos exibidos</p><p className="text-3xl font-black text-gray-900 mt-2">{filteredEvents.length}</p></div>
+        <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm"><p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Arrecadação</p><p className="text-3xl font-black text-emerald-600 mt-2">R$ {globalStats.raised.toFixed(2)}</p></div>
+        <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm"><p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Meta consolidada</p><p className="text-3xl font-black text-blue-600 mt-2">R$ {globalStats.goal.toFixed(2)}</p></div>
+        <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm"><p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Saldo líquido</p><p className={`text-3xl font-black mt-2 ${globalStats.net >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>R$ {globalStats.net.toFixed(2)}</p></div>
+      </div>
+
+      <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm mx-2 lg:mx-0">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+          <div className="relative"><Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-300" /><input value={eventSearch} onChange={(e) => setEventSearch(e.target.value)} placeholder="Buscar evento..." className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-semibold" /></div>
+          <select value={eventStatusFilter} onChange={(e) => setEventStatusFilter(e.target.value as typeof eventStatusFilter)} className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-xs font-black uppercase tracking-wider text-gray-600"><option value="all">Todos</option><option value="active">Ativos</option><option value="closed">Finalizados</option></select>
+          <select value={eventSortBy} onChange={(e) => setEventSortBy(e.target.value as typeof eventSortBy)} className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-xs font-black uppercase tracking-wider text-gray-600"><option value="date">Mais recentes</option><option value="progress">Maior progresso</option><option value="name">Nome A-Z</option></select>
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 px-2 lg:px-0">
-        {events.map(event => {
+        {filteredEvents.map(event => {
           const stats = getEventStats(event);
           return (
-            <div key={event.id} className="bg-white rounded-[2.5rem] border border-gray-100 shadow-sm overflow-hidden flex flex-col group hover:shadow-2xl transition-all border-l-8 border-l-blue-600">
+            <div key={event.id} className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden flex flex-col group hover:shadow-2xl transition-all border-l-8 border-l-blue-600">
               <div className="p-8 space-y-6 flex-1">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-4">
@@ -289,8 +359,8 @@ const EventsView: React.FC = () => {
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <button className="p-2 text-gray-300 hover:text-blue-600 transition-colors"><Edit3 className="w-5 h-5" /></button>
-                    <button className="p-2 text-gray-300 hover:text-red-500 transition-colors"><Trash2 className="w-5 h-5" /></button>
+                    <button onClick={() => handleEditEvent(event)} className="p-2 text-gray-300 hover:text-blue-600 transition-colors"><Edit3 className="w-5 h-5" /></button>
+                    <button onClick={() => handleDeleteEvent(event.id)} className="p-2 text-gray-300 hover:text-red-500 transition-colors"><Trash2 className="w-5 h-5" /></button>
                   </div>
                 </div>
 
@@ -342,17 +412,19 @@ const EventsView: React.FC = () => {
                     </div>
                 </div>
               </div>
-              <button className="w-full py-4 bg-gray-50 text-[10px] font-black text-blue-600 uppercase tracking-widest hover:bg-blue-600 hover:text-white transition-all border-t border-gray-50 flex items-center justify-center gap-2">
-                 Ver Detalhamento de Equipes <ChevronRight className="w-4 h-4" />
-              </button>
+              <div className="w-full py-4 bg-gray-50 border-t border-gray-50 flex items-center justify-center gap-2">
+                <button onClick={() => handleOpenSaleModal(event)} className="px-4 py-2 rounded-xl bg-emerald-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-emerald-700 transition-all flex items-center gap-2">
+                  <ShoppingCart className="w-4 h-4" /> Registrar Venda
+                </button>
+              </div>
             </div>
           );
         })}
       </div>
 
       {showSaleModal && selectedEventForSale && (
-        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-          <div className="bg-white w-full max-w-2xl rounded-3xl shadow-2xl border border-gray-100 overflow-hidden">
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm">
+          <div className="bg-white w-full max-w-2xl rounded-3xl shadow-2xl border border-slate-100 overflow-hidden">
             <div className="px-6 py-5 border-b border-gray-100 flex items-center justify-between">
               <div>
                 <h3 className="text-lg font-black text-gray-900">Adicionar venda</h3>
@@ -440,6 +512,18 @@ const EventsView: React.FC = () => {
                 />
               </div>
 
+              <div>
+                <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">Status da venda</label>
+                <select
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-bold"
+                  value={saleForm.status}
+                  onChange={(e) => setSaleForm(prev => ({ ...prev, status: e.target.value as 'Pago' | 'Pendente' }))}
+                >
+                  <option value="Pago">Pago</option>
+                  <option value="Pendente">Pendente</option>
+                </select>
+              </div>
+
               <div className="md:col-span-2 bg-blue-50 border border-blue-100 rounded-xl p-4">
                 <p className="text-[10px] font-black uppercase tracking-widest text-blue-500">Total da operacao</p>
                 <p className="text-2xl font-black text-blue-700">R$ {(saleForm.quantity * saleForm.amount).toFixed(2)}</p>
@@ -460,17 +544,17 @@ const EventsView: React.FC = () => {
       )}
       {/* MODAL NOVO EVENTO / EDICAO - VERSAO MELHORADA COM TABS */}
       {showModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-2 sm:p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
-          <div className="bg-white w-full max-w-5xl rounded-3xl shadow-2xl flex flex-col overflow-hidden border border-gray-100 animate-in zoom-in-95 duration-500 max-h-[95vh]">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 bg-slate-900/70 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className="bg-white w-full max-w-4xl rounded-3xl shadow-2xl flex flex-col overflow-hidden border border-slate-100 animate-in zoom-in-95 duration-500 max-h-[90vh]">
             
             {/* Header */}
-            <div className="px-6 sm:px-8 py-6 border-b border-gray-100 flex items-center justify-between bg-gradient-to-r from-blue-50 to-white">
+            <div className="px-5 sm:px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-gradient-to-r from-blue-50 to-white">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-blue-600 rounded-xl flex items-center justify-center text-white shadow-lg">
+                <div className="w-9 h-9 sm:w-10 sm:h-10 bg-blue-600 rounded-lg flex items-center justify-center text-white shadow-lg">
                   <Ticket className="w-5 h-5 sm:w-6 sm:h-6" />
                 </div>
                 <div>
-                  <h3 className="text-lg sm:text-xl font-black text-gray-900">{editingEventId ? 'Editar Evento' : 'Novo Evento'}</h3>
+                  <h3 className="text-lg sm:text-xl font-black text-gray-900">{editingEventId ? 'Editar evento' : 'Novo evento'}</h3>
                   <p className="text-[9px] sm:text-[10px] text-gray-400 font-bold uppercase tracking-widest">Configure todos os detalhes</p>
                 </div>
               </div>
@@ -480,33 +564,38 @@ const EventsView: React.FC = () => {
             </div>
 
             {/* Tabs Navigation */}
-            <div className="flex border-b border-gray-100 bg-gray-50 px-6 sm:px-8 overflow-x-auto no-scrollbar">
+            <div className="flex border-b border-gray-100 bg-gray-50 px-4 sm:px-6 overflow-x-auto no-scrollbar gap-2">
               <button 
                 onClick={() => setActiveTab('basic')}
-                className={`px-4 sm:px-6 py-4 text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all border-b-2 whitespace-nowrap ${activeTab === 'basic' ? 'border-blue-600 text-blue-600 bg-white' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
+                className={`px-3 sm:px-4 py-3 text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all border-b-2 whitespace-nowrap rounded-t-lg ${activeTab === 'basic' ? 'border-blue-600 text-blue-600 bg-white' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
               >
-                Dados Basicos
+                Dados básicos
               </button>
               <button 
                 onClick={() => setActiveTab('expenses')}
-                className={`px-4 sm:px-6 py-4 text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all border-b-2 whitespace-nowrap ${activeTab === 'expenses' ? 'border-blue-600 text-blue-600 bg-white' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
+                className={`px-3 sm:px-4 py-3 text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all border-b-2 whitespace-nowrap rounded-t-lg ${activeTab === 'expenses' ? 'border-blue-600 text-blue-600 bg-white' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
               >
                 Gastos
               </button>
               <button 
                 onClick={() => setActiveTab('goals')}
-                className={`px-4 sm:px-6 py-4 text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all border-b-2 whitespace-nowrap ${activeTab === 'goals' ? 'border-blue-600 text-blue-600 bg-white' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
+                className={`px-3 sm:px-4 py-3 text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all border-b-2 whitespace-nowrap rounded-t-lg ${activeTab === 'goals' ? 'border-blue-600 text-blue-600 bg-white' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
               >
                 Metas
               </button>
             </div>
 
             {/* Tab Content */}
-            <div className="p-6 sm:p-8 overflow-y-auto flex-1">
+            <div className="p-4 sm:p-5 overflow-y-auto flex-1">
               
               {/* ABA: DADOS BASICOS */}
               {activeTab === 'basic' && (
-                <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+                <div className="space-y-5 animate-in fade-in slide-in-from-right-4 duration-300">
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="bg-blue-50 border border-blue-100 rounded-xl p-3"><p className="text-[9px] font-black uppercase tracking-widest text-blue-500">Receita potencial</p><p className="text-sm font-black text-blue-700 mt-1">R$ {potentialRevenue.toFixed(2)}</p></div>
+                    <div className="bg-red-50 border border-red-100 rounded-xl p-3"><p className="text-[9px] font-black uppercase tracking-widest text-red-500">Gastos atuais</p><p className="text-sm font-black text-red-600 mt-1">R$ {totalExpenses.toFixed(2)}</p></div>
+                    <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-3"><p className="text-[9px] font-black uppercase tracking-widest text-emerald-600">Meta</p><p className="text-sm font-black text-emerald-700 mt-1">R$ {Number(formData.goalValue || 0).toFixed(2)}</p></div>
+                  </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
                     <div className="md:col-span-2">
                       <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">Nome do Evento *</label>
@@ -535,7 +624,7 @@ const EventsView: React.FC = () => {
                         <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                         <input 
                           type="text" 
-                          placeholder="Ex: Salao Paroquial" 
+                          placeholder="Ex: Salão Paroquial" 
                           className="w-full pl-11 pr-4 py-3 sm:py-4 bg-gray-50 border border-gray-200 rounded-xl text-sm font-bold text-gray-700 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none" 
                           value={formData.location} 
                           onChange={e => setFormData({...formData, location: e.target.value})} 
@@ -544,9 +633,9 @@ const EventsView: React.FC = () => {
                     </div>
 
                     <div className="md:col-span-2">
-                      <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">Descricao</label>
+                      <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">Descrição</label>
                       <textarea 
-                        placeholder="Descreva o evento, objetivo, programacao..." 
+                        placeholder="Descreva o evento, objetivo e programação..." 
                         className="w-full px-4 py-3 sm:px-5 sm:py-4 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium text-gray-700 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none resize-none" 
                         rows={3}
                         value={formData.description} 
@@ -555,7 +644,7 @@ const EventsView: React.FC = () => {
                     </div>
 
                     <div>
-                      <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">Responsavel</label>
+                      <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">Responsável</label>
                       <div className="relative">
                         <User className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                         <input 
@@ -628,7 +717,7 @@ const EventsView: React.FC = () => {
               {activeTab === 'expenses' && (
                 <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
                   <div className="flex items-center justify-between">
-                    <h4 className="text-sm font-black text-gray-800">Detalhamento de Custos</h4>
+                    <h4 className="text-sm font-black text-gray-800">Detalhamento de custos</h4>
                     <div className="px-4 py-2 bg-red-50 rounded-xl border border-red-100">
                       <span className="text-[10px] font-black text-red-600 uppercase">Total: R$ {totalExpenses.toFixed(2)}</span>
                     </div>
@@ -639,7 +728,7 @@ const EventsView: React.FC = () => {
                       <div className="sm:col-span-6">
                         <input 
                           type="text" 
-                          placeholder="Descricao do gasto..." 
+                          placeholder="Descrição do gasto..." 
                           className="w-full px-4 py-3 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-700 outline-none focus:ring-2 focus:ring-blue-500"
                           value={newExpense.description}
                           onChange={e => setNewExpense({...newExpense, description: e.target.value})}
@@ -746,7 +835,7 @@ const EventsView: React.FC = () => {
             </div>
 
             {/* Footer */}
-            <div className="px-6 sm:px-8 py-5 bg-gray-50 border-t border-gray-100 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="px-5 sm:px-6 py-4 bg-gray-50 border-t border-gray-100 flex flex-col sm:flex-row items-center justify-between gap-3 sticky bottom-0">
               <button 
                 onClick={() => setShowModal(false)} 
                 className="text-xs font-black text-gray-400 uppercase tracking-widest hover:text-red-500 transition-colors order-2 sm:order-1"
@@ -769,7 +858,6 @@ const EventsView: React.FC = () => {
 };
 
 export default EventsView;
-
 
 
 

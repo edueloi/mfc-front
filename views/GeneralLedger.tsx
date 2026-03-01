@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Plus, 
   ArrowLeft, 
@@ -30,6 +30,8 @@ const GeneralLedger: React.FC = () => {
   const [showLaunchModal, setShowLaunchModal] = useState(false);
   const [showEntityModal, setShowEntityModal] = useState(false);
   const [notification, setNotification] = useState<string | null>(null);
+  const [entitySearch, setEntitySearch] = useState('');
+  const [entityYearFilter, setEntityYearFilter] = useState<'all' | number>('all');
 
   const [entities, setEntities] = useState<FinancialEntity[]>([]);
 
@@ -63,18 +65,36 @@ const GeneralLedger: React.FC = () => {
     Receita: [
       { id: '1.1.1', label: 'Receitas de Vendas - Dinheiro' },
       { id: '1.1.2', label: 'Receitas de Vendas - PIX' },
-      { id: '1.1.3', label: 'Receitas de Vendas - CartÃ£o' },
+      { id: '1.1.3', label: 'Receitas de Vendas - Cartão' },
       { id: '1.1.4', label: 'Outros' },
     ],
     Despesa: [
       { id: '2.1.1', label: 'Ajuda de Custos a Colaboradores' },
-      { id: '2.1.2', label: 'Material Acervo LiterÃ¡rio' },
+      { id: '2.1.2', label: 'Material Acervo Literário' },
       { id: '2.1.3', label: 'Telefone / Internet' },
       { id: '2.1.7', label: 'INSS / DARF' },
-      { id: '2.1.11', label: 'SalÃ¡rio / M.O' },
+      { id: '2.1.11', label: 'Salário / M.O' },
       { id: '2.1.15', label: 'Tarifa Maquininha' },
     ]
   };
+
+  const filteredEntities = useMemo(() => {
+    return entities
+      .filter((entity) =>
+        entity.name.toLowerCase().includes(entitySearch.toLowerCase()) ||
+        String(entity.year).includes(entitySearch)
+      )
+      .filter((entity) => (entityYearFilter === 'all' ? true : entity.year === entityYearFilter))
+      .sort((a, b) => b.year - a.year);
+  }, [entities, entitySearch, entityYearFilter]);
+
+  const listStats = useMemo(() => {
+    return filteredEntities.reduce((acc, entity) => {
+      acc.total += 1;
+      acc.balance += Number(entity.initialBalance) || 0;
+      return acc;
+    }, { total: 0, balance: 0 });
+  }, [filteredEntities]);
 
   const notify = (msg: string) => {
     setNotification(msg);
@@ -142,12 +162,51 @@ const GeneralLedger: React.FC = () => {
         </button>
       </div>
 
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
+          <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Livros filtrados</p>
+          <p className="text-3xl font-black text-gray-900 mt-2">{listStats.total}</p>
+        </div>
+        <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
+          <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Saldo inicial consolidado</p>
+          <p className="text-3xl font-black text-blue-600 mt-2">R$ {listStats.balance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+        </div>
+        <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
+          <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Média por livro</p>
+          <p className="text-3xl font-black text-emerald-600 mt-2">R$ {(listStats.balance / Math.max(listStats.total, 1)).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+        </div>
+      </div>
+
+      <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="relative sm:col-span-2">
+            <FileText className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-300" />
+            <input
+              value={entitySearch}
+              onChange={(e) => setEntitySearch(e.target.value)}
+              placeholder="Buscar por nome ou exercício..."
+              className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-semibold"
+            />
+          </div>
+          <select
+            value={entityYearFilter}
+            onChange={(e) => setEntityYearFilter(e.target.value === 'all' ? 'all' : Number(e.target.value))}
+            className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-xs font-black uppercase tracking-wider text-gray-600"
+          >
+            <option value="all">Todos os anos</option>
+            {Array.from(new Set(entities.map((entity) => entity.year))).sort((a, b) => b - a).map((year) => (
+              <option key={year} value={year}>{year}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-        {entities.map(entity => (
+        {filteredEntities.map(entity => (
           <div 
             key={entity.id} 
             onClick={() => { setSelectedEntityId(entity.id); setView('detail'); }}
-            className="bg-white rounded-[2.5rem] border border-gray-100 shadow-sm hover:shadow-2xl hover:-translate-y-2 transition-all cursor-pointer group flex flex-col overflow-hidden relative"
+            className="bg-white rounded-3xl border border-gray-100 shadow-sm hover:shadow-2xl hover:-translate-y-2 transition-all cursor-pointer group flex flex-col overflow-hidden relative"
           >
             <div className="p-10 flex-1 relative z-10">
               <div className="flex items-center justify-between mb-8">
@@ -160,7 +219,7 @@ const GeneralLedger: React.FC = () => {
               </div>
               <h3 className="text-xl font-black text-gray-900 mb-3 group-hover:text-blue-600 transition-colors leading-tight">{entity.name}</h3>
               <p className="text-sm text-gray-500 line-clamp-2 leading-relaxed mb-8 font-medium italic">
-                {entity.observations || 'Sem observaÃ§Ãµes.'}
+                {entity.observations || 'Sem observações.'}
               </p>
               <div className="flex items-center gap-6 pt-6 border-t border-gray-50">
                 <div className="space-y-1">
@@ -176,6 +235,12 @@ const GeneralLedger: React.FC = () => {
           </div>
         ))}
       </div>
+
+      {filteredEntities.length === 0 && (
+        <div className="bg-white border border-gray-100 rounded-2xl p-10 text-center text-gray-400 font-semibold">
+          Nenhum livro encontrado com os filtros atuais.
+        </div>
+      )}
     </div>
   );
 
@@ -210,7 +275,41 @@ const GeneralLedger: React.FC = () => {
         </div>
       </div>
 
-      <div className="bg-white rounded-[2.5rem] border border-gray-100 shadow-2xl flex-1 overflow-hidden flex flex-col">
+      <div className="bg-white rounded-3xl border border-gray-100 shadow-2xl flex-1 overflow-hidden flex flex-col">
+        <div className="p-6 border-b border-gray-100 bg-gray-50/60 grid grid-cols-1 lg:grid-cols-4 gap-3">
+          <div className="bg-white rounded-xl border border-gray-100 p-4">
+            <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Saldo inicial</p>
+            <p className="text-2xl font-black text-blue-600 mt-1">R$ {Number(selectedEntity?.initialBalance || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+          </div>
+          <div className="bg-white rounded-xl border border-gray-100 p-4">
+            <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Receita projetada</p>
+            <p className="text-2xl font-black text-emerald-600 mt-1">R$ 18.750,00</p>
+          </div>
+          <div className="bg-white rounded-xl border border-gray-100 p-4">
+            <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Despesa projetada</p>
+            <p className="text-2xl font-black text-red-500 mt-1">R$ 6.132,26</p>
+          </div>
+          <div className="bg-white rounded-xl border border-gray-100 p-4">
+            <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Resultado estimado</p>
+            <p className="text-2xl font-black text-purple-600 mt-1">R$ 12.617,74</p>
+          </div>
+        </div>
+
+        <div className="px-6 py-5 border-b border-gray-100 bg-white">
+          <h4 className="text-sm font-black text-gray-700 uppercase tracking-widest mb-3">Evolução mensal (visual rápido)</h4>
+          <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-6 gap-2">
+            {[42, 58, 51, 64, 60, 74, 68, 80, 73, 88, 91, 95].map((value, idx) => (
+              <div key={monthNames[idx]} className="bg-gray-50 rounded-xl p-2 border border-gray-100">
+                <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">{monthNames[idx].slice(0, 3)}</p>
+                <div className="h-1.5 rounded-full bg-gray-200 overflow-hidden">
+                  <div className="h-full bg-blue-600 transition-all duration-700" style={{ width: `${value}%` }} />
+                </div>
+                <p className="mt-1 text-[10px] font-black text-gray-600">{value}%</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
         <div className="overflow-x-auto overflow-y-auto no-scrollbar relative flex-1">
           <table className="w-full text-left border-separate border-spacing-0">
             <thead className="sticky top-0 z-30">
@@ -277,8 +376,8 @@ const GeneralLedger: React.FC = () => {
 
       {/* MODAL NOVO LIVRO CAIXA */}
       {showEntityModal && (
-        <div className="fixed inset-0 z-[250] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
-           <div className="bg-white w-full max-w-lg rounded-[2.5rem] shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-300">
+        <div className="fixed inset-0 z-[250] flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm">
+           <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-300">
               <div className="p-8 border-b border-gray-50 flex items-center justify-between">
                  <div className="flex items-center gap-4">
                     <div className="w-12 h-12 bg-blue-600 rounded-2xl flex items-center justify-center text-white shadow-lg">
@@ -293,7 +392,7 @@ const GeneralLedger: React.FC = () => {
               </div>
               <div className="p-8 space-y-6">
                  <div>
-                    <label className="block text-[10px] font-black text-gray-400 uppercase mb-2 ml-1">TÃ­tulo</label>
+                    <label className="block text-[10px] font-black text-gray-400 uppercase mb-2 ml-1">Título</label>
                     <input type="text" className="w-full bg-gray-50 border border-gray-100 rounded-xl px-5 py-3.5 font-bold text-gray-700 focus:ring-4 focus:ring-blue-100 transition-all outline-none" value={newEntity.name} onChange={e => setNewEntity({...newEntity, name: e.target.value})} />
                  </div>
                  <div className="grid grid-cols-2 gap-4">
@@ -312,10 +411,10 @@ const GeneralLedger: React.FC = () => {
         </div>
       )}
 
-      {/* MODAL DE LANÃ‡AMENTO EM LOTE - REDESENHADO (SOFISTICADO & COMPACTO) */}
+      {/* MODAL DE LANÇAMENTO EM LOTE - REDESENHADO (SOFISTICADO & COMPACTO) */}
       {showLaunchModal && (
         <div className="fixed inset-0 z-[250] flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm overflow-y-auto">
-          <div className="bg-white w-full max-w-xl rounded-[2.5rem] shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-bottom-5 duration-400 border border-gray-100">
+          <div className="bg-white w-full max-w-xl rounded-3xl shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-bottom-5 duration-400 border border-gray-100">
             
             {/* Header Reduzido */}
             <div className="p-6 sm:p-8 border-b border-gray-50 flex items-center justify-between bg-white sticky top-0 z-20">
@@ -443,6 +542,5 @@ const GeneralLedger: React.FC = () => {
 };
 
 export default GeneralLedger;
-
 
 

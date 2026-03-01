@@ -171,7 +171,7 @@ const UserManagement: React.FC = () => {
         </button>
       </div>
 
-      <div className="bg-white rounded-[2.5rem] border border-gray-100 overflow-hidden shadow-sm">
+      <div className="bg-white rounded-3xl border border-gray-100 overflow-hidden shadow-sm">
         <div className="p-6 border-b border-gray-50 bg-gray-50/30">
           <div className="relative max-w-md group">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300 w-4 h-4 group-focus-within:text-blue-500 transition-colors" />
@@ -245,7 +245,7 @@ const UserManagement: React.FC = () => {
       {/* MODAL NOVO USUÁRIO */}
       {showModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 bg-slate-900/70 backdrop-blur-sm overflow-hidden animate-in fade-in duration-300">
-          <div className="bg-white w-full max-w-2xl max-h-[90vh] rounded-[2.5rem] shadow-2xl flex flex-col animate-in slide-in-from-bottom-5 duration-500 overflow-hidden border border-gray-100">
+          <div className="bg-white w-full max-w-2xl max-h-[90vh] rounded-3xl shadow-2xl flex flex-col animate-in slide-in-from-bottom-5 duration-500 overflow-hidden border border-gray-100">
             
             <div className="px-8 py-6 border-b border-gray-50 flex items-center justify-between">
               <div className="flex items-center gap-4">
