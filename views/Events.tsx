@@ -40,6 +40,9 @@ const EventsView: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'basic' | 'expenses' | 'goals'>('basic');
   const [showSaleModal, setShowSaleModal] = useState(false);
   const [selectedEventForSale, setSelectedEventForSale] = useState<Event | null>(null);
+  const [eventSearch, setEventSearch] = useState('');
+  const [eventStatusFilter, setEventStatusFilter] = useState<'all' | 'active' | 'closed'>('all');
+  const [eventSortBy, setEventSortBy] = useState<'date' | 'progress' | 'name'>('date');
 
   const [formData, setFormData] = useState({
     name: '',
@@ -237,6 +240,58 @@ const EventsView: React.FC = () => {
     setEditingEventId(null);
   };
 
+  const handleEditEvent = (event: Event) => {
+    setEditingEventId(event.id);
+    setActiveTab('basic');
+    setFormData({
+      name: event.name,
+      date: event.date,
+      location: (event as any).location || '',
+      description: (event as any).description || '',
+      responsible: (event as any).responsible || '',
+      goalValue: Number(event.goalValue) || 0,
+      showOnDashboard: Boolean(event.showOnDashboard),
+      ticketQuantity: Number(event.ticketQuantity) || 0,
+      ticketValue: Number(event.ticketValue) || 0,
+      expenses: event.expenses || [],
+      teamQuotas: event.teamQuotas || teams.map(t => ({ teamId: t.id, quotaValue: 0 }))
+    });
+    setShowModal(true);
+  };
+
+  const handleDeleteEvent = (eventId: string) => {
+    if (!window.confirm('Deseja realmente inativar este evento?')) return;
+    api.updateEvent(eventId, { isActive: false })
+      .then(() => loadData())
+      .catch(() => alert('Não foi possível inativar o evento.'));
+  };
+
+  const filteredEvents = useMemo(() => {
+    return events
+      .filter((event) => event.name.toLowerCase().includes(eventSearch.toLowerCase()))
+      .filter((event) => {
+        if (eventStatusFilter === 'active') return event.isActive;
+        if (eventStatusFilter === 'closed') return !event.isActive;
+        return true;
+      })
+      .sort((a, b) => {
+        if (eventSortBy === 'name') return a.name.localeCompare(b.name);
+        if (eventSortBy === 'progress') return getEventStats(b).progress - getEventStats(a).progress;
+        return new Date(b.date).getTime() - new Date(a.date).getTime();
+      });
+  }, [events, eventSearch, eventStatusFilter, eventSortBy, eventSales]);
+
+  const globalStats = useMemo(() => {
+    return filteredEvents.reduce((acc, event) => {
+      const stats = getEventStats(event);
+      acc.raised += stats.raised;
+      acc.goal += Number(event.goalValue) || 0;
+      acc.net += stats.netProfit;
+      acc.tickets += stats.ticketsSold;
+      return acc;
+    }, { raised: 0, goal: 0, net: 0, tickets: 0 });
+  }, [filteredEvents, eventSales]);
+
   return (
     <div className="space-y-8 animate-in fade-in duration-700 pb-20">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 px-2 lg:px-0">
@@ -270,8 +325,23 @@ const EventsView: React.FC = () => {
         </button>
       </div>
 
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 px-2 lg:px-0">
+        <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm"><p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Eventos exibidos</p><p className="text-3xl font-black text-gray-900 mt-2">{filteredEvents.length}</p></div>
+        <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm"><p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Arrecadação</p><p className="text-3xl font-black text-emerald-600 mt-2">R$ {globalStats.raised.toFixed(2)}</p></div>
+        <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm"><p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Meta consolidada</p><p className="text-3xl font-black text-blue-600 mt-2">R$ {globalStats.goal.toFixed(2)}</p></div>
+        <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm"><p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Saldo líquido</p><p className={`text-3xl font-black mt-2 ${globalStats.net >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>R$ {globalStats.net.toFixed(2)}</p></div>
+      </div>
+
+      <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm mx-2 lg:mx-0">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+          <div className="relative"><Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-300" /><input value={eventSearch} onChange={(e) => setEventSearch(e.target.value)} placeholder="Buscar evento..." className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-semibold" /></div>
+          <select value={eventStatusFilter} onChange={(e) => setEventStatusFilter(e.target.value as typeof eventStatusFilter)} className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-xs font-black uppercase tracking-wider text-gray-600"><option value="all">Todos</option><option value="active">Ativos</option><option value="closed">Finalizados</option></select>
+          <select value={eventSortBy} onChange={(e) => setEventSortBy(e.target.value as typeof eventSortBy)} className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-xs font-black uppercase tracking-wider text-gray-600"><option value="date">Mais recentes</option><option value="progress">Maior progresso</option><option value="name">Nome A-Z</option></select>
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 px-2 lg:px-0">
-        {events.map(event => {
+        {filteredEvents.map(event => {
           const stats = getEventStats(event);
           return (
             <div key={event.id} className="bg-white rounded-[2.5rem] border border-gray-100 shadow-sm overflow-hidden flex flex-col group hover:shadow-2xl transition-all border-l-8 border-l-blue-600">
@@ -289,8 +359,8 @@ const EventsView: React.FC = () => {
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <button className="p-2 text-gray-300 hover:text-blue-600 transition-colors"><Edit3 className="w-5 h-5" /></button>
-                    <button className="p-2 text-gray-300 hover:text-red-500 transition-colors"><Trash2 className="w-5 h-5" /></button>
+                    <button onClick={() => handleEditEvent(event)} className="p-2 text-gray-300 hover:text-blue-600 transition-colors"><Edit3 className="w-5 h-5" /></button>
+                    <button onClick={() => handleDeleteEvent(event.id)} className="p-2 text-gray-300 hover:text-red-500 transition-colors"><Trash2 className="w-5 h-5" /></button>
                   </div>
                 </div>
 
@@ -342,9 +412,11 @@ const EventsView: React.FC = () => {
                     </div>
                 </div>
               </div>
-              <button className="w-full py-4 bg-gray-50 text-[10px] font-black text-blue-600 uppercase tracking-widest hover:bg-blue-600 hover:text-white transition-all border-t border-gray-50 flex items-center justify-center gap-2">
-                 Ver Detalhamento de Equipes <ChevronRight className="w-4 h-4" />
-              </button>
+              <div className="w-full py-4 bg-gray-50 border-t border-gray-50 flex items-center justify-center gap-2">
+                <button onClick={() => handleOpenSaleModal(event)} className="px-4 py-2 rounded-xl bg-emerald-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-emerald-700 transition-all flex items-center gap-2">
+                  <ShoppingCart className="w-4 h-4" /> Registrar Venda
+                </button>
+              </div>
             </div>
           );
         })}
@@ -438,6 +510,18 @@ const EventsView: React.FC = () => {
                   value={saleForm.date}
                   onChange={(e) => setSaleForm(prev => ({ ...prev, date: e.target.value }))}
                 />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">Status da venda</label>
+                <select
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-bold"
+                  value={saleForm.status}
+                  onChange={(e) => setSaleForm(prev => ({ ...prev, status: e.target.value as 'Pago' | 'Pendente' }))}
+                >
+                  <option value="Pago">Pago</option>
+                  <option value="Pendente">Pendente</option>
+                </select>
               </div>
 
               <div className="md:col-span-2 bg-blue-50 border border-blue-100 rounded-xl p-4">
@@ -769,7 +853,6 @@ const EventsView: React.FC = () => {
 };
 
 export default EventsView;
-
 
 
 

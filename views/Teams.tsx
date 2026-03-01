@@ -18,7 +18,10 @@ import {
   Filter,
   Crown,
   Baby,
-  ChevronDown
+  ChevronDown,
+  ArrowUpDown,
+  Sparkles,
+  AlertTriangle
 } from 'lucide-react';
 import { api } from '../api';
 import { BaseTeam, City } from '../types';
@@ -33,6 +36,8 @@ const Teams: React.FC = () => {
   const [cities, setCities] = useState<City[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<'all' | 'base' | 'youth'>('all');
+  const [sortBy, setSortBy] = useState<'name' | 'members' | 'city'>('name');
+  const [selectedCityFilter, setSelectedCityFilter] = useState('all');
   const [estados, setEstados] = useState<Array<{id: number, sigla: string, nome: string}>>([]);
 
   const loadData = () => {
@@ -68,6 +73,11 @@ const Teams: React.FC = () => {
   }, [cities]);
 
   const handleCreate = (saveAndNew: boolean) => {
+    if (newTeam.name.trim().length < 3) {
+      toast.error('Informe um nome de equipe com pelo menos 3 caracteres.');
+      return;
+    }
+
     const createPromise = api.createTeam(newTeam);
 
     toast.promise(createPromise, {
@@ -95,6 +105,10 @@ const Teams: React.FC = () => {
 
   const handleUpdate = () => {
     if (!editingTeam) return;
+    if (newTeam.name.trim().length < 3) {
+      toast.error('Informe um nome de equipe com pelo menos 3 caracteres.');
+      return;
+    }
 
     const updatePromise = api.updateTeam(editingTeam.id, newTeam);
 
@@ -155,18 +169,29 @@ const Teams: React.FC = () => {
       });
   };
 
-  const filteredTeams = teams.filter(team => {
-    const matchesSearch = team.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         team.city.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesFilter = filterType === 'all' || 
-                         (filterType === 'base' && !team.isYouth) ||
-                         (filterType === 'youth' && team.isYouth);
-    return matchesSearch && matchesFilter;
-  });
+  const filteredTeams = teams
+    .filter(team => {
+      const matchesSearch = team.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           team.city.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesFilter = filterType === 'all' ||
+                           (filterType === 'base' && !team.isYouth) ||
+                           (filterType === 'youth' && team.isYouth);
+      const matchesCity = selectedCityFilter === 'all' || team.city === selectedCityFilter;
+      return matchesSearch && matchesFilter && matchesCity;
+    })
+    .sort((a, b) => {
+      if (sortBy === 'members') return (b.memberCount || 0) - (a.memberCount || 0);
+      if (sortBy === 'city') return a.city.localeCompare(b.city);
+      return a.name.localeCompare(b.name);
+    });
 
   const baseTeams = teams.filter(t => !t.isYouth);
   const youthTeams = teams.filter(t => t.isYouth);
   const totalMembers = teams.reduce((acc, t) => acc + (t.memberCount || 0), 0);
+  const teamsAtRisk = teams.filter((team) => (team.memberCount || 0) <= 2).length;
+  const cityOptions = Array.from(new Set(teams.map((team) => team.city))).sort((a, b) => a.localeCompare(b));
+  const canSave = newTeam.name.trim().length >= 3 && newTeam.city.trim() !== '' && newTeam.state.trim() !== '';
+  const formCompletion = Math.round(([newTeam.name, newTeam.city, newTeam.state].filter((item) => item.trim() !== '').length / 3) * 100);
 
   return (
     <div className="p-6 sm:p-8 space-y-6 min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
@@ -180,7 +205,7 @@ const Teams: React.FC = () => {
           </div>
           <div>
             <h1 className="text-3xl font-black text-gray-900 tracking-tight">Equipes Base</h1>
-            <p className="text-sm text-gray-500 font-semibold mt-1">Gerencie as equipes do MFC</p>
+            <p className="text-sm text-gray-500 font-semibold mt-1">Gestão estratégica das equipes base e MFC jovem</p>
           </div>
         </div>
         <button
@@ -191,13 +216,13 @@ const Teams: React.FC = () => {
           }}
           className="flex items-center gap-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-3.5 rounded-2xl font-black text-sm shadow-lg hover:shadow-xl transition-all active:scale-95"
         >
-          <Plus className="w-5 h-5" />
+          <Sparkles className="w-5 h-5" />
           Nova Equipe Base
         </button>
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
@@ -228,6 +253,17 @@ const Teams: React.FC = () => {
             <div>
               <p className="text-2xl font-black text-gray-900">{totalMembers}</p>
               <p className="text-xs text-gray-500 font-bold uppercase tracking-wider">Total MFCistas</p>
+            </div>
+          </div>
+        </div>
+        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 bg-amber-100 rounded-xl flex items-center justify-center">
+              <AlertTriangle className="w-6 h-6 text-amber-600" />
+            </div>
+            <div>
+              <p className="text-2xl font-black text-gray-900">{teamsAtRisk}</p>
+              <p className="text-xs text-gray-500 font-bold uppercase tracking-wider">Equipes em atenção</p>
             </div>
           </div>
         </div>
@@ -279,6 +315,37 @@ const Teams: React.FC = () => {
               <Baby className="w-4 h-4 inline mr-1" />
               Jovem
             </button>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="relative">
+            <MapPinned className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <select
+              value={selectedCityFilter}
+              onChange={(e) => setSelectedCityFilter(e.target.value)}
+              className="w-full pl-10 pr-3 py-3 bg-gray-50 border border-gray-100 rounded-xl text-xs font-bold text-gray-600"
+            >
+              <option value="all">Todas as cidades</option>
+              {cityOptions.map((city) => <option key={city} value={city}>{city}</option>)}
+            </select>
+          </div>
+          <div className="relative">
+            <ArrowUpDown className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
+              className="w-full pl-10 pr-3 py-3 bg-gray-50 border border-gray-100 rounded-xl text-xs font-bold text-gray-600"
+            >
+              <option value="name">Ordenar por nome</option>
+              <option value="members">Ordenar por membros</option>
+              <option value="city">Ordenar por cidade</option>
+            </select>
+          </div>
+          <div className="flex items-center justify-center sm:justify-end">
+            <span className="text-xs font-black text-gray-500 uppercase tracking-wider bg-gray-50 border border-gray-100 px-3 py-2 rounded-xl">
+              Exibindo {filteredTeams.length} equipes
+            </span>
           </div>
         </div>
       </div>
@@ -384,6 +451,15 @@ const Teams: React.FC = () => {
               </div>
             </div>
             <div className="px-8 py-6 space-y-5">
+              <div className="p-3 bg-slate-50 border border-slate-100 rounded-xl">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Progresso</span>
+                  <span className="text-xs font-black text-blue-700">{formCompletion}%</span>
+                </div>
+                <div className="h-2 bg-white border border-slate-200 rounded-full overflow-hidden">
+                  <div className="h-full bg-gradient-to-r from-blue-500 to-purple-500 transition-all" style={{ width: `${formCompletion}%` }} />
+                </div>
+              </div>
               <div>
                 <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">
                   Nome da Equipe
@@ -448,14 +524,16 @@ const Teams: React.FC = () => {
               {!editingTeam && (
                 <button
                   onClick={() => handleCreate(true)}
-                  className="flex-1 border-2 border-gray-200 text-gray-700 px-5 py-3 rounded-xl font-bold text-sm hover:bg-gray-100 transition-all"
+                  disabled={!canSave}
+                  className="flex-1 border-2 border-gray-200 text-gray-700 px-5 py-3 rounded-xl font-bold text-sm hover:bg-gray-100 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Salvar e Criar Outra
                 </button>
               )}
               <button
                 onClick={editingTeam ? handleUpdate : () => handleCreate(false)}
-                className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-3 rounded-xl font-bold text-sm hover:shadow-lg transition-all active:scale-95"
+                disabled={!canSave}
+                className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-3 rounded-xl font-bold text-sm hover:shadow-lg transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {editingTeam ? 'Atualizar Equipe' : 'Criar Equipe'}
               </button>
