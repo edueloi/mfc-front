@@ -30,7 +30,10 @@ import {
   Briefcase,
   Cake,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Search,
+  SlidersHorizontal,
+  RotateCcw
 } from 'lucide-react';
 import { 
   BarChart, 
@@ -77,6 +80,10 @@ const MyTeamView: React.FC<MyTeamViewProps> = ({ teamId, userId, userRole }) => 
   const [localPayments, setLocalPayments] = useState<Payment[]>([]);
   const [localSales, setLocalSales] = useState<EventSale[]>([]);
   const [events, setEvents] = useState<Event[]>([]);
+  const [familySearch, setFamilySearch] = useState('');
+  const [familyStatusFilter, setFamilyStatusFilter] = useState<'all' | 'pendente' | 'em_dia'>('all');
+  const [memberSearch, setMemberSearch] = useState('');
+  const [memberStatusFilter, setMemberStatusFilter] = useState<'all' | 'Ativo' | 'Inativo'>('all');
 
   const loadData = () => {
     api.getMembers()
@@ -235,6 +242,58 @@ const MyTeamView: React.FC<MyTeamViewProps> = ({ teamId, userId, userRole }) => 
 
     return groups.sort((a, b) => b.atrasos - a.atrasos);
   }, [membersState, localPayments, viewYear, viewMonth, defaultMonthlyAmount]);
+
+  const filteredGroupedMembers = useMemo(() => {
+    return groupedMembers
+      .filter((group) => {
+        if (familyStatusFilter === 'all') return true;
+        if (familyStatusFilter === 'pendente') return group.atrasos > 0;
+        return group.atrasos === 0;
+      })
+      .filter((group) => {
+        if (!familySearch.trim()) return true;
+        const query = familySearch.toLowerCase();
+        return (
+          group.displayName.toLowerCase().includes(query) ||
+          String(group.familyName || '').toLowerCase().includes(query) ||
+          group.members.some((member: Member) => member.name.toLowerCase().includes(query))
+        );
+      });
+  }, [groupedMembers, familySearch, familyStatusFilter]);
+
+  const familyQuickStats = useMemo(() => {
+    const pending = groupedMembers.filter((group) => group.atrasos > 0).length;
+    const upToDate = groupedMembers.length - pending;
+    return {
+      total: groupedMembers.length,
+      pending,
+      upToDate
+    };
+  }, [groupedMembers]);
+
+  const memberQuickStats = useMemo(() => {
+    const active = membersState.filter((member) => member.status === 'Ativo').length;
+    const inactive = membersState.filter((member) => member.status !== 'Ativo').length;
+    return {
+      total: membersState.length,
+      active,
+      inactive
+    };
+  }, [membersState]);
+
+  const filteredTeamMembers = useMemo(() => {
+    return membersState
+      .filter((member) => (memberStatusFilter === 'all' ? true : member.status === memberStatusFilter))
+      .filter((member) => {
+        if (!memberSearch.trim()) return true;
+        const query = memberSearch.toLowerCase();
+        return (
+          member.name.toLowerCase().includes(query) ||
+          String(member.nickname || '').toLowerCase().includes(query)
+        );
+      })
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [membersState, memberSearch, memberStatusFilter]);
 
   const calculateAge = (dob: string) => {
     if (!dob) return null;
@@ -490,6 +549,64 @@ const MyTeamView: React.FC<MyTeamViewProps> = ({ teamId, userId, userRole }) => 
             )}
           </div>
 
+          {groupedMembers.length > 0 && (
+            <div className="bg-white border border-gray-100 rounded-2xl md:rounded-3xl p-3 md:p-5 shadow-sm space-y-3">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-2">
+                <h3 className="text-sm md:text-base font-black text-gray-800 tracking-tight">Filtros de Famílias</h3>
+                {(familySearch || familyStatusFilter !== 'all') && (
+                  <button
+                    onClick={() => {
+                      setFamilySearch('');
+                      setFamilyStatusFilter('all');
+                    }}
+                    className="self-start md:self-auto px-3 py-1.5 rounded-xl border border-gray-200 bg-white text-[10px] font-black uppercase tracking-widest text-gray-600 hover:bg-gray-50 flex items-center gap-1.5"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" /> Limpar
+                  </button>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div className="relative md:col-span-2">
+                  <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    value={familySearch}
+                    onChange={(e) => setFamilySearch(e.target.value)}
+                    placeholder="Buscar família, membro ou nome exibido..."
+                    className="w-full pl-10 pr-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-semibold text-gray-700"
+                  />
+                </div>
+                <div className="relative">
+                  <SlidersHorizontal className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <select
+                    value={familyStatusFilter}
+                    onChange={(e) => setFamilyStatusFilter(e.target.value as 'all' | 'pendente' | 'em_dia')}
+                    className="w-full pl-10 pr-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-black uppercase tracking-wider text-gray-600"
+                  >
+                    <option value="all">Todas as famílias</option>
+                    <option value="pendente">Com pendência</option>
+                    <option value="em_dia">Em dia</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                <div className="bg-gray-50 border border-gray-100 rounded-xl p-3">
+                  <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">Total</p>
+                  <p className="text-lg font-black text-gray-900">{familyQuickStats.total}</p>
+                </div>
+                <div className="bg-red-50 border border-red-100 rounded-xl p-3">
+                  <p className="text-[9px] font-black uppercase tracking-widest text-red-400">Pendentes</p>
+                  <p className="text-lg font-black text-red-600">{familyQuickStats.pending}</p>
+                </div>
+                <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-3">
+                  <p className="text-[9px] font-black uppercase tracking-widest text-emerald-500">Em dia</p>
+                  <p className="text-lg font-black text-emerald-600">{familyQuickStats.upToDate}</p>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* PRÓXIMOS ANIVERSARIANTES */}
           {upcomingBirthdays.length > 0 && (
             <div className="bg-gradient-to-br from-pink-50 to-purple-50 border-2 border-pink-200 rounded-2xl md:rounded-3xl p-4 md:p-6">
@@ -607,9 +724,16 @@ const MyTeamView: React.FC<MyTeamViewProps> = ({ teamId, userId, userRole }) => 
           )}
 
           {/* LISTA DE FAMÍLIAS */}
-          {groupedMembers.length > 0 && (
+          {groupedMembers.length > 0 && filteredGroupedMembers.length === 0 && (
+            <div className="bg-white border border-gray-100 rounded-2xl p-8 text-center">
+              <p className="text-sm font-black text-gray-700">Nenhuma família encontrada para os filtros atuais.</p>
+              <p className="text-xs text-gray-400 mt-2">Tente limpar a busca ou alterar o status.</p>
+            </div>
+          )}
+
+          {filteredGroupedMembers.length > 0 && (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6 lg:gap-8">
-              {groupedMembers.map((group, idx) => {
+              {filteredGroupedMembers.map((group, idx) => {
               const progressPercent = Math.round((group.monthsStatus.filter((s: boolean) => s).length / viewMonth) * 100);
               const isLate = group.atrasos > 0;
               const isExpanded = expandedFamily === group.familyName || expandedFamily === `group_${idx}`;
@@ -888,8 +1012,60 @@ const MyTeamView: React.FC<MyTeamViewProps> = ({ teamId, userId, userRole }) => 
       )}
 
       {activeTab === 'membros' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-6">
-          {membersState.map(m => (
+        <div className="space-y-4">
+          <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 mb-3">
+              <h3 className="text-sm md:text-base font-black text-gray-800 tracking-tight">Busca de Membros</h3>
+              {(memberSearch || memberStatusFilter !== 'all') && (
+                <button
+                  onClick={() => {
+                    setMemberSearch('');
+                    setMemberStatusFilter('all');
+                  }}
+                  className="self-start md:self-auto px-3 py-1.5 rounded-xl border border-gray-200 bg-white text-[10px] font-black uppercase tracking-widest text-gray-600 hover:bg-gray-50 flex items-center gap-1.5"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" /> Limpar
+                </button>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div className="relative md:col-span-2">
+                <Search className="w-4 h-4 text-gray-300 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  value={memberSearch}
+                  onChange={(e) => setMemberSearch(e.target.value)}
+                  placeholder="Buscar membro por nome ou apelido..."
+                  className="w-full pl-10 pr-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-semibold"
+                />
+              </div>
+              <select
+                value={memberStatusFilter}
+                onChange={(e) => setMemberStatusFilter(e.target.value as 'all' | 'Ativo' | 'Inativo')}
+                className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-black uppercase tracking-wider text-gray-600"
+              >
+                <option value="all">Todos os status</option>
+                <option value="Ativo">Somente ativos</option>
+                <option value="Inativo">Somente inativos</option>
+              </select>
+            </div>
+
+            <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-2">
+              <div className="bg-gray-50 border border-gray-100 rounded-xl p-2.5"><p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Total</p><p className="text-base font-black text-gray-900">{memberQuickStats.total}</p></div>
+              <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-2.5"><p className="text-[9px] font-black text-emerald-500 uppercase tracking-widest">Ativos</p><p className="text-base font-black text-emerald-700">{memberQuickStats.active}</p></div>
+              <div className="bg-amber-50 border border-amber-100 rounded-xl p-2.5"><p className="text-[9px] font-black text-amber-500 uppercase tracking-widest">Inativos</p><p className="text-base font-black text-amber-700">{memberQuickStats.inactive}</p></div>
+            </div>
+
+            <p className="mt-3 text-[11px] font-bold text-gray-500">Exibindo {filteredTeamMembers.length} de {membersState.length} membros.</p>
+          </div>
+
+          {filteredTeamMembers.length === 0 ? (
+            <div className="bg-white border border-gray-100 rounded-2xl p-10 text-center">
+              <p className="text-sm font-black text-gray-700">Nenhum membro encontrado com os filtros atuais.</p>
+            </div>
+          ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-6">
+          {filteredTeamMembers.map(m => (
             <div key={m.id} className="bg-white p-4 md:p-6 rounded-2xl md:rounded-3xl border border-gray-100 shadow-sm hover:shadow-2xl transition-all cursor-pointer group" onClick={() => navigate(`/mfcistas/${m.id}`)}>
               <div className="flex items-center gap-2 md:gap-4 mb-4 md:mb-6">
                 <div className="w-12 h-12 md:w-14 md:h-14 rounded-xl md:rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center font-black text-lg md:text-xl group-hover:bg-blue-600 group-hover:text-white transition-all flex-shrink-0">
@@ -906,6 +1082,8 @@ const MyTeamView: React.FC<MyTeamViewProps> = ({ teamId, userId, userRole }) => 
               </div>
             </div>
           ))}
+          </div>
+          )}
         </div>
       )}
 

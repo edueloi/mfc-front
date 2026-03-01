@@ -146,21 +146,38 @@ const GeneralLedger: React.FC = () => {
   };
 
   const selectedEntity = entities.find(e => e.id === selectedEntityId);
+  const monthlyRevenueValue = 7100;
+  const monthlyExpenseValue = 850;
+  const annualRevenueTotal = categories.Receita.length * monthlyRevenueValue * 12;
+  const annualExpenseTotal = categories.Despesa.length * monthlyExpenseValue * 12;
+  const estimatedResult = annualRevenueTotal - annualExpenseTotal + Number(selectedEntity?.initialBalance || 0);
+
+  const formatCurrency = (value: number) => value.toLocaleString('pt-BR', { minimumFractionDigits: 2 });
   const spreadsheetScrollRef = useRef<HTMLDivElement | null>(null);
   const [canScrollRight, setCanScrollRight] = useState(false);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [scrollProgress, setScrollProgress] = useState(0);
+  const [focusedMonthIndex, setFocusedMonthIndex] = useState<number | null>(null);
 
   const updateScrollHints = () => {
     const el = spreadsheetScrollRef.current;
     if (!el) return;
+    const maxScrollLeft = Math.max(el.scrollWidth - el.clientWidth, 1);
     setCanScrollLeft(el.scrollLeft > 8);
     setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 8);
+    setScrollProgress(Math.min(100, Math.max(0, (el.scrollLeft / maxScrollLeft) * 100)));
   };
 
   const handleLedgerHorizontalScroll = (direction: 'left' | 'right') => {
     const el = spreadsheetScrollRef.current;
     if (!el) return;
     el.scrollBy({ left: direction === 'right' ? 380 : -380, behavior: 'smooth' });
+  };
+
+  const handleLedgerScrollToEdge = (direction: 'start' | 'end') => {
+    const el = spreadsheetScrollRef.current;
+    if (!el) return;
+    el.scrollTo({ left: direction === 'end' ? el.scrollWidth : 0, behavior: 'smooth' });
   };
 
   useEffect(() => {
@@ -175,6 +192,43 @@ const GeneralLedger: React.FC = () => {
       window.removeEventListener('resize', updateScrollHints);
     };
   }, [view, selectedEntityId]);
+
+  const handleExportSpreadsheetCsv = () => {
+    if (!selectedEntity) return;
+
+    const headers = ['Item de Controle', ...monthNames, 'Total Anual'];
+    const rows: string[][] = [];
+
+    rows.push(['1. RECEITAS', ...Array(12).fill(''), '']);
+    categories.Receita.forEach((acc) => {
+      const monthlyValues = Array(12).fill(monthlyRevenueValue);
+      rows.push([`${acc.id} ${acc.label}`, ...monthlyValues.map((value) => formatCurrency(value)), formatCurrency(monthlyValues.reduce((a, b) => a + b, 0))]);
+    });
+
+    rows.push(['2. DESPESAS', ...Array(12).fill(''), '']);
+    categories.Despesa.forEach((acc) => {
+      const monthlyValues = Array(12).fill(monthlyExpenseValue);
+      rows.push([`${acc.id} ${acc.label}`, ...monthlyValues.map((value) => formatCurrency(value)), formatCurrency(monthlyValues.reduce((a, b) => a + b, 0))]);
+    });
+
+    rows.push(['Saldo Final', ...Array(12).fill(''), formatCurrency(estimatedResult)]);
+
+    const csv = [headers, ...rows]
+      .map((cols) => cols.map((col) => `"${String(col).replace(/"/g, '""')}"`).join(';'))
+      .join('\n');
+
+    const blob = new Blob([`\ufeff${csv}`], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `livro-caixa-${selectedEntity.name.toLowerCase().replace(/\s+/g, '-')}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    notify('CSV do Livro Caixa exportado com sucesso!');
+  };
 
   const renderList = () => (
     <div className="space-y-8 animate-in fade-in duration-500">
@@ -293,6 +347,12 @@ const GeneralLedger: React.FC = () => {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <button
+            onClick={handleExportSpreadsheetCsv}
+            className="px-5 py-3 bg-white border border-gray-100 text-gray-600 rounded-2xl font-bold text-[10px] uppercase tracking-widest hover:bg-gray-50 transition-all flex items-center gap-2"
+          >
+            <Download className="w-4 h-4" /> Exportar CSV
+          </button>
           <button className="px-5 py-3 bg-white border border-gray-100 text-gray-600 rounded-2xl font-bold text-[10px] uppercase tracking-widest hover:bg-gray-50 transition-all flex items-center gap-2">
             <Printer className="w-4 h-4" /> Imprimir
           </button>
@@ -313,15 +373,15 @@ const GeneralLedger: React.FC = () => {
           </div>
           <div className="bg-white rounded-xl border border-gray-100 p-4">
             <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Receita projetada</p>
-            <p className="text-2xl font-black text-emerald-600 mt-1">R$ 18.750,00</p>
+            <p className="text-2xl font-black text-emerald-600 mt-1">R$ {formatCurrency(annualRevenueTotal)}</p>
           </div>
           <div className="bg-white rounded-xl border border-gray-100 p-4">
             <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Despesa projetada</p>
-            <p className="text-2xl font-black text-red-500 mt-1">R$ 6.132,26</p>
+            <p className="text-2xl font-black text-red-500 mt-1">R$ {formatCurrency(annualExpenseTotal)}</p>
           </div>
           <div className="bg-white rounded-xl border border-gray-100 p-4">
             <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Resultado estimado</p>
-            <p className="text-2xl font-black text-purple-600 mt-1">R$ 12.617,74</p>
+            <p className="text-2xl font-black text-purple-600 mt-1">R$ {formatCurrency(estimatedResult)}</p>
           </div>
         </div>
 
@@ -341,11 +401,27 @@ const GeneralLedger: React.FC = () => {
         </div>
 
         <div className="px-6 py-3 border-b border-gray-100 bg-gradient-to-r from-blue-50/70 via-white to-blue-50/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-gray-500">
-            <ArrowRightLeft className="w-4 h-4 text-blue-600" />
-            Arraste para os lados para ver todos os meses e o total anual
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-gray-500">
+              <ArrowRightLeft className="w-4 h-4 text-blue-600" />
+              Arraste para os lados para ver todos os meses e o total anual
+            </div>
+            <div className="w-56 h-1.5 rounded-full bg-blue-100 overflow-hidden">
+              <div className="h-full bg-blue-600 transition-all duration-300" style={{ width: `${scrollProgress}%` }} />
+            </div>
+            <p className="text-[10px] font-bold text-blue-700">
+              Navegação horizontal: {scrollProgress.toFixed(0)}%
+              {focusedMonthIndex !== null ? ` • Foco: ${monthNames[focusedMonthIndex]}` : ''}
+            </p>
           </div>
           <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => handleLedgerScrollToEdge('start')}
+              className="px-3 py-2 rounded-xl border border-gray-200 bg-white text-[10px] font-black uppercase tracking-widest text-gray-600 hover:bg-gray-50"
+            >
+              Janeiro
+            </button>
             <button
               type="button"
               onClick={() => handleLedgerHorizontalScroll('left')}
@@ -362,10 +438,17 @@ const GeneralLedger: React.FC = () => {
             >
               Ver direita →
             </button>
+            <button
+              type="button"
+              onClick={() => handleLedgerScrollToEdge('end')}
+              className="px-3 py-2 rounded-xl border border-blue-200 bg-white text-[10px] font-black uppercase tracking-widest text-blue-700 hover:bg-blue-50"
+            >
+              Dezembro
+            </button>
           </div>
         </div>
 
-        <div ref={spreadsheetScrollRef} className="overflow-x-auto overflow-y-auto relative flex-1 scrollbar-thin scrollbar-thumb-blue-200 scrollbar-track-blue-50">
+        <div ref={spreadsheetScrollRef} tabIndex={0} onKeyDown={(e) => { if (e.key === 'ArrowRight') handleLedgerHorizontalScroll('right'); if (e.key === 'ArrowLeft') handleLedgerHorizontalScroll('left'); }} className="overflow-x-auto overflow-y-auto relative flex-1 scrollbar-thin scrollbar-thumb-blue-200 scrollbar-track-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-300">
           {canScrollRight && (
             <div className="pointer-events-none absolute right-0 top-0 z-20 h-full w-10 bg-gradient-to-l from-white via-white/80 to-transparent" />
           )}
@@ -378,8 +461,14 @@ const GeneralLedger: React.FC = () => {
                 <th className="sticky left-0 top-0 z-40 bg-slate-50 px-8 py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest border-r border-b border-gray-100 min-w-[320px] shadow-[2px_0_5px_rgba(0,0,0,0.01)]">
                   Item de Controle
                 </th>
-                {monthNames.map(m => (
-                  <th key={m} className="px-4 py-5 text-[10px] font-black text-gray-400 uppercase text-center border-r border-b border-gray-100 min-w-[120px] bg-slate-50">{m}</th>
+                {monthNames.map((m, monthIdx) => (
+                  <th
+                    key={m}
+                    onClick={() => setFocusedMonthIndex(monthIdx)}
+                    className={`px-4 py-5 text-[10px] font-black uppercase text-center border-r border-b border-gray-100 min-w-[120px] cursor-pointer transition-colors ${focusedMonthIndex === monthIdx ? 'bg-blue-100 text-blue-700' : 'bg-slate-50 text-gray-400 hover:bg-blue-50'}`}
+                  >
+                    {m}
+                  </th>
                 ))}
                 <th className="px-6 py-5 text-[10px] font-black text-blue-600 uppercase text-center bg-blue-50/30 border-b border-gray-100 min-w-[140px]">Total Anual</th>
               </tr>
@@ -394,9 +483,9 @@ const GeneralLedger: React.FC = () => {
                     <span className="text-blue-500 mr-2 font-black">{acc.id}</span> {acc.label}
                   </td>
                   {monthNames.map((_, i) => (
-                    <td key={i} className="px-4 py-4 text-right border-r border-b border-gray-50 text-green-600 font-bold tabular-nums">7.100,00</td>
+                    <td key={i} className={`px-4 py-4 text-right border-r border-b border-gray-50 font-bold tabular-nums ${focusedMonthIndex === i ? 'bg-blue-50/60 text-blue-700' : 'text-green-600'}`}>{formatCurrency(monthlyRevenueValue)}</td>
                   ))}
-                  <td className="px-6 py-4 text-right bg-blue-50/10 border-b border-gray-50 font-black text-blue-700 tabular-nums">85.200,00</td>
+                  <td className="px-6 py-4 text-right bg-blue-50/10 border-b border-gray-50 font-black text-blue-700 tabular-nums">{formatCurrency(monthlyRevenueValue * 12)}</td>
                 </tr>
               ))}
               <tr className="bg-slate-800 text-white">
@@ -408,14 +497,14 @@ const GeneralLedger: React.FC = () => {
                     <span className="text-red-500 mr-2 font-black">{acc.id}</span> {acc.label}
                   </td>
                   {monthNames.map((_, i) => (
-                    <td key={i} className="px-4 py-4 text-right border-r border-b border-gray-50 text-red-500 font-medium tabular-nums">850,00</td>
+                    <td key={i} className={`px-4 py-4 text-right border-r border-b border-gray-50 font-medium tabular-nums ${focusedMonthIndex === i ? 'bg-red-50/70 text-red-700' : 'text-red-500'}`}>{formatCurrency(monthlyExpenseValue)}</td>
                   ))}
-                  <td className="px-6 py-4 text-right bg-gray-50/50 border-b border-gray-50 font-black text-red-700 tabular-nums">10.200,00</td>
+                  <td className="px-6 py-4 text-right bg-gray-50/50 border-b border-gray-50 font-black text-red-700 tabular-nums">{formatCurrency(monthlyExpenseValue * 12)}</td>
                 </tr>
               ))}
               <tr className="bg-blue-600 text-white">
                 <td className="sticky left-0 z-20 bg-blue-700 px-8 py-6 border-r border-blue-800 font-black uppercase text-[10px] tracking-widest shadow-[2px_0_5px_rgba(0,0,0,0.05)]">Saldo Final</td>
-                <td colSpan={13} className="px-10 py-6 text-right font-black text-2xl tracking-tight pr-16 italic">R$ (12.617,74)</td>
+                <td colSpan={13} className="px-10 py-6 text-right font-black text-2xl tracking-tight pr-16 italic">R$ {formatCurrency(estimatedResult)}</td>
               </tr>
             </tbody>
           </table>
