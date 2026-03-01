@@ -31,7 +31,9 @@ import {
   UserCog,
   ChevronRight,
   ToggleLeft,
-  ToggleRight
+  ToggleRight,
+  Percent,
+  BadgeDollarSign
 } from 'lucide-react';
 import { api } from '../api';
 import { UserRoleType, ModuleAction, City } from '../types';
@@ -87,6 +89,15 @@ interface FinancialConfig {
   currency: string;
 }
 
+
+interface AdvancedFinanceConfig {
+  dueDay: number;
+  graceDay: number;
+  repassePercentage: number;
+  allowPartialPayment: boolean;
+  autoGenerateMonthlyCharges: boolean;
+}
+
 const SettingsView: React.FC<SettingsViewProps> = ({ initialTab = 'permissoes' }) => {
   const [activeTab, setActiveTab] = useState(initialTab);
   const [citySearch, setCitySearch] = useState('');
@@ -97,6 +108,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({ initialTab = 'permissoes' }
   const [selectedRoleId, setSelectedRoleId] = useState<string>('');
   const [showRoleModal, setShowRoleModal] = useState(false);
   const [newRoleName, setNewRoleName] = useState('');
+  const [permissionSearch, setPermissionSearch] = useState('');
 
   // State para Configurações Financeiras
   const [financialConfig, setFinancialConfig] = useState<FinancialConfig>({
@@ -105,6 +117,14 @@ const SettingsView: React.FC<SettingsViewProps> = ({ initialTab = 'permissoes' }
     currency: 'BRL'
   });
   const [savedNotification, setSavedNotification] = useState(false);
+  const [citySortBy, setCitySortBy] = useState<'name' | 'status'>('name');
+  const [advancedFinance, setAdvancedFinance] = useState<AdvancedFinanceConfig>({
+    dueDay: 10,
+    graceDay: 5,
+    repassePercentage: 25,
+    allowPartialPayment: true,
+    autoGenerateMonthlyCharges: true
+  });
   useEffect(() => {
     api.getCities().then(setCities).catch(() => setCities([]));
     api.getRoles().then(setRoles).catch(() => setRoles([]));
@@ -115,6 +135,15 @@ const SettingsView: React.FC<SettingsViewProps> = ({ initialTab = 'permissoes' }
       .catch((e) => {
         console.error('Erro ao carregar configurações financeiras:', e);
       });
+
+    const storedAdvanced = localStorage.getItem('mfc.settings.advancedFinance');
+    if (storedAdvanced) {
+      try {
+        setAdvancedFinance(JSON.parse(storedAdvanced));
+      } catch (_) {
+        // ignore invalid local settings
+      }
+    }
   }, []);
 
   useEffect(() => {
@@ -133,9 +162,21 @@ const SettingsView: React.FC<SettingsViewProps> = ({ initialTab = 'permissoes' }
   const [cityToDelete, setCityToDelete] = useState<City | null>(null);
   const [deleteConfirmationText, setDeleteConfirmationText] = useState('');
 
-  const filteredCities = cities.filter(c => 
-    c.name.toLowerCase().includes(citySearch.toLowerCase()) || 
-    c.uf.toLowerCase().includes(citySearch.toLowerCase())
+  const filteredCities = cities
+    .filter(c =>
+      c.name.toLowerCase().includes(citySearch.toLowerCase()) ||
+      c.uf.toLowerCase().includes(citySearch.toLowerCase())
+    )
+    .sort((a, b) => {
+      if (citySortBy === 'status') return Number(Boolean(b.active)) - Number(Boolean(a.active));
+      return a.name.localeCompare(b.name);
+    });
+
+  const activeCities = cities.filter((city) => city.active !== false).length;
+  const inactiveCities = cities.filter((city) => city.active === false).length;
+
+  const filteredModules = MODULES.filter((module) =>
+    module.name.toLowerCase().includes(permissionSearch.toLowerCase())
   );
 
   const handleSaveRole = () => {
@@ -242,7 +283,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({ initialTab = 'permissoes' }
             <MapPin className="w-4 h-4" /> Unidades do MFC
           </button>
           <button onClick={() => setActiveTab('financeiro')} className={`flex-1 lg:flex-none flex items-center justify-center gap-2 px-6 lg:px-8 py-3.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'financeiro' ? 'bg-white text-blue-600 shadow-xl shadow-gray-200/50 border border-gray-100' : 'text-gray-400'}`}>
-            <DollarSign className="w-4 h-4" /> Financeiro
+            <DollarSign className="w-4 h-4" /> Mensalidades e Repasses
           </button>
         </div>
       </div>
@@ -261,7 +302,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({ initialTab = 'permissoes' }
               </button>
             </div>
             
-            <div className="bg-white rounded-[2rem] border border-gray-100 shadow-sm p-3 space-y-2">
+            <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-3 space-y-2">
               {roles.map(role => (
                 <button
                   key={role.id}
@@ -279,7 +320,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({ initialTab = 'permissoes' }
           </div>
 
           {/* Matriz de Permissões */}
-          <div className="flex-1 bg-white rounded-[2.5rem] border border-gray-100 shadow-sm overflow-hidden flex flex-col">
+          <div className="flex-1 bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden flex flex-col">
             <div className="p-8 border-b border-gray-50 flex items-center justify-between bg-white sticky top-0 z-10">
               <div>
                 <h3 className="text-xl font-black text-gray-900 tracking-tight">Configurar: {selectedRole?.name}</h3>
@@ -294,6 +335,31 @@ const SettingsView: React.FC<SettingsViewProps> = ({ initialTab = 'permissoes' }
               )}
             </div>
 
+            <div className="px-8 py-4 border-b border-gray-50 bg-white">
+              <div className="flex flex-col lg:flex-row gap-3 lg:items-center lg:justify-between">
+                <div className="relative max-w-md w-full">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-300" />
+                  <input
+                    type="text"
+                    value={permissionSearch}
+                    onChange={(e) => setPermissionSearch(e.target.value)}
+                    placeholder="Buscar módulo..."
+                    className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-100 rounded-xl text-sm font-semibold"
+                  />
+                </div>
+                {!selectedRole?.isSystem && (
+                  <div className="flex items-center gap-2">
+                    <button onClick={() => {
+                      setRoles(roles.map((r) => r.id === selectedRoleId ? ({ ...r, permissions: Object.fromEntries(MODULES.map((m) => [m.id, { view: true, create: true, edit: true, delete: true, launch: true }])) as any }) : r));
+                    }} className="px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest bg-emerald-50 text-emerald-700">Liberar tudo</button>
+                    <button onClick={() => {
+                      setRoles(roles.map((r) => r.id === selectedRoleId ? ({ ...r, permissions: Object.fromEntries(MODULES.map((m) => [m.id, { view: false, create: false, edit: false, delete: false, launch: false }])) as any }) : r));
+                    }} className="px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest bg-gray-100 text-gray-600">Zerar</button>
+                  </div>
+                )}
+              </div>
+            </div>
+
             <div className="overflow-x-auto no-scrollbar">
               <table className="w-full text-left border-separate border-spacing-0">
                 <thead>
@@ -305,7 +371,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({ initialTab = 'permissoes' }
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
-                  {MODULES.map(module => (
+                  {filteredModules.map(module => (
                     <tr key={module.id} className="hover:bg-blue-50/10 transition-colors group">
                       <td className="px-10 py-5 sticky left-0 bg-white group-hover:bg-blue-50/10 z-10 border-r border-gray-50 shadow-sm">
                         <div className="flex items-center gap-4">
@@ -349,7 +415,22 @@ const SettingsView: React.FC<SettingsViewProps> = ({ initialTab = 'permissoes' }
       {/* Aba de Cidades (Existente) */}
       {activeTab === 'cidades' && (
         <div className="space-y-6 animate-in slide-in-from-right-4 duration-500">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm"><p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Total de unidades</p><p className="text-3xl font-black text-gray-900 mt-2">{cities.length}</p></div>
+            <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm"><p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Unidades ativas</p><p className="text-3xl font-black text-emerald-600 mt-2">{activeCities}</p></div>
+            <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm"><p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Unidades inativas</p><p className="text-3xl font-black text-amber-600 mt-2">{inactiveCities}</p></div>
+          </div>
           <div className="flex flex-col lg:flex-row gap-4 px-2 lg:px-0">
+            <div className="lg:w-56">
+              <select
+                value={citySortBy}
+                onChange={(e) => setCitySortBy(e.target.value as typeof citySortBy)}
+                className="w-full py-4 px-4 bg-white border border-gray-100 rounded-2xl text-xs font-black uppercase tracking-wider text-gray-500"
+              >
+                <option value="name">Ordenar por nome</option>
+                <option value="status">Ordenar por status</option>
+              </select>
+            </div>
             <div className="relative flex-1 group">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300 w-4 h-4 group-focus-within:text-blue-500 transition-colors" />
               <input 
@@ -377,7 +458,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({ initialTab = 'permissoes' }
             {filteredCities.map(city => (
               <div 
                 key={city.id} 
-                className={`bg-white p-7 rounded-[2.5rem] border border-gray-100 shadow-sm flex flex-col group hover:shadow-xl transition-all relative overflow-hidden ${!city.active ? 'bg-gray-50/50' : ''}`}
+                className={`bg-white p-7 rounded-3xl border border-gray-100 shadow-sm flex flex-col group hover:shadow-xl transition-all relative overflow-hidden ${!city.active ? 'bg-gray-50/50' : ''}`}
               >
                 <div className="flex items-center justify-between mb-6">
                   <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all shadow-inner ${city.active ? 'bg-blue-50 text-blue-600' : 'bg-gray-200 text-gray-400'}`}>
@@ -433,8 +514,8 @@ const SettingsView: React.FC<SettingsViewProps> = ({ initialTab = 'permissoes' }
 
       {/* MODAL NOVO PERFIL / PERMISSÃO */}
       {showRoleModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
-          <div className="bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl flex flex-col overflow-hidden border border-gray-100 animate-in zoom-in-95 duration-500">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-slate-900/70 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className="bg-white w-full max-w-md rounded-3xl shadow-2xl flex flex-col overflow-hidden border border-gray-100 animate-in zoom-in-95 duration-500">
             <div className="p-10 border-b border-gray-50 text-center">
               <div className="w-16 h-16 bg-blue-600 rounded-3xl flex items-center justify-center text-white mx-auto shadow-xl mb-6">
                 <Shield className="w-8 h-8" />
@@ -473,8 +554,8 @@ const SettingsView: React.FC<SettingsViewProps> = ({ initialTab = 'permissoes' }
 
       {/* MODAL CIDADE (CADASTRO / EDIÃ‡ÃO) */}
       {showCityModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
-          <div className="bg-white w-full max-w-lg rounded-[2.5rem] shadow-2xl flex flex-col overflow-hidden border border-gray-100 animate-in zoom-in-95 duration-500">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-slate-900/70 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl flex flex-col overflow-hidden border border-gray-100 animate-in zoom-in-95 duration-500">
             <div className="px-8 py-8 border-b border-gray-50 flex items-center justify-between">
               <div className="flex items-center gap-4">
                 <div className="w-12 h-12 bg-blue-600 rounded-2xl flex items-center justify-center text-white shadow-xl shadow-blue-100">
@@ -544,8 +625,8 @@ const SettingsView: React.FC<SettingsViewProps> = ({ initialTab = 'permissoes' }
 
       {/* MODAL EXCLUSÃO (BLINDADO) */}
       {showDeleteModal && cityToDelete && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-slate-900/80 backdrop-blur-md animate-in fade-in duration-300">
-          <div className="bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl flex flex-col overflow-hidden border border-red-100 animate-in zoom-in-95 duration-500">
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-slate-900/70 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className="bg-white w-full max-w-md rounded-3xl shadow-2xl flex flex-col overflow-hidden border border-red-100 animate-in zoom-in-95 duration-500">
             <div className="p-8 text-center space-y-6">
               <div className="w-20 h-20 bg-red-50 text-red-500 rounded-3xl flex items-center justify-center mx-auto shadow-inner">
                 <AlertTriangle className="w-10 h-10" />
@@ -595,14 +676,14 @@ const SettingsView: React.FC<SettingsViewProps> = ({ initialTab = 'permissoes' }
 
       {activeTab === 'financeiro' && (
         <div className="animate-in slide-in-from-right-4 duration-500">
-          <div className="bg-white rounded-[2rem] border border-gray-100 shadow-sm p-8 lg:p-10 space-y-8">
+          <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-8 lg:p-10 space-y-8">
             <div className="flex items-start gap-4">
               <div className="w-14 h-14 bg-emerald-50 rounded-2xl flex items-center justify-center text-emerald-600 shrink-0">
                 <DollarSign className="w-7 h-7" />
               </div>
               <div className="flex-1">
-                <h3 className="text-2xl font-black text-gray-900 tracking-tight leading-none mb-2">Configurações Financeiras</h3>
-                <p className="text-sm text-gray-500">Defina os valores padrão utilizados nos lançamentos do sistema.</p>
+                <h3 className="text-2xl font-black text-gray-900 tracking-tight leading-none mb-2">Configuração de Mensalidades e Repasses</h3>
+                <p className="text-sm text-gray-500">Painel completo para mensalidades, repasses da unidade e regras operacionais.</p>
               </div>
             </div>
 
@@ -628,7 +709,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({ initialTab = 'permissoes' }
 
                 <div className="space-y-3">
                   <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">
-                    Valor Padrão de Ingressos para Eventos
+                    Valor Base para Repasse da Unidade
                   </label>
                   <div className="relative">
                     <span className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400 font-black text-sm">R$</span>
@@ -641,7 +722,44 @@ const SettingsView: React.FC<SettingsViewProps> = ({ initialTab = 'permissoes' }
                       onChange={(e) => setFinancialConfig({...financialConfig, eventTicketDefaultValue: parseFloat(e.target.value) || 0})}
                     />
                   </div>
-                  <p className="text-xs text-gray-400 ml-1">Valor sugerido ao criar novos eventos no sistema.</p>
+                  <p className="text-xs text-gray-400 ml-1">Valor base utilizado como referência de repasse mensal da unidade.</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="space-y-3">
+                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Dia de vencimento da mensalidade</label>
+                  <div className="relative">
+                    <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <input type="number" min={1} max={31} value={advancedFinance.dueDay} onChange={(e) => setAdvancedFinance({ ...advancedFinance, dueDay: Number(e.target.value) || 1 })} className="w-full pl-11 pr-4 py-4 bg-gray-50 border border-gray-200 rounded-2xl font-black text-gray-800" />
+                  </div>
+                </div>
+                <div className="space-y-3">
+                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Tolerância após vencimento (dias)</label>
+                  <div className="relative">
+                    <Clock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <input type="number" min={0} max={31} value={advancedFinance.graceDay} onChange={(e) => setAdvancedFinance({ ...advancedFinance, graceDay: Number(e.target.value) || 0 })} className="w-full pl-11 pr-4 py-4 bg-gray-50 border border-gray-200 rounded-2xl font-black text-gray-800" />
+                  </div>
+                </div>
+                <div className="space-y-3">
+                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Percentual padrão de repasse</label>
+                  <div className="relative">
+                    <Percent className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <input type="number" min={0} max={100} step="0.1" value={advancedFinance.repassePercentage} onChange={(e) => setAdvancedFinance({ ...advancedFinance, repassePercentage: Number(e.target.value) || 0 })} className="w-full pl-11 pr-4 py-4 bg-gray-50 border border-gray-200 rounded-2xl font-black text-gray-800" />
+                  </div>
+                </div>
+                <div className="space-y-3">
+                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Regras de cobrança</label>
+                  <div className="space-y-3 bg-gray-50 border border-gray-100 rounded-2xl p-4">
+                    <label className="flex items-center justify-between text-sm font-bold text-gray-700">
+                      Permitir pagamento parcial
+                      <input type="checkbox" checked={advancedFinance.allowPartialPayment} onChange={(e) => setAdvancedFinance({ ...advancedFinance, allowPartialPayment: e.target.checked })} />
+                    </label>
+                    <label className="flex items-center justify-between text-sm font-bold text-gray-700">
+                      Gerar mensalidades automaticamente
+                      <input type="checkbox" checked={advancedFinance.autoGenerateMonthlyCharges} onChange={(e) => setAdvancedFinance({ ...advancedFinance, autoGenerateMonthlyCharges: e.target.checked })} />
+                    </label>
+                  </div>
                 </div>
               </div>
 
@@ -657,6 +775,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({ initialTab = 'permissoes' }
                   onClick={() => {
                     api.updateFinancialConfig(financialConfig)
                       .then(() => {
+                        localStorage.setItem('mfc.settings.advancedFinance', JSON.stringify(advancedFinance));
                         setSavedNotification(true);
                         setTimeout(() => setSavedNotification(false), 3000);
                       })

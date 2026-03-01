@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, UserPlus, Users, Calendar, MapPin, Search, Trash2, Edit } from 'lucide-react';
 import { api } from '../api';
+import ModalShell from '../components/ModalShell';
 import { MemberStatus, Member, BaseTeam } from '../types';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 
@@ -158,48 +159,38 @@ const TeamDetail: React.FC = () => {
 
       {/* Add Member Modal */}
       {showAddMember && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-          <div className="bg-white rounded-2xl w-full max-w-2xl shadow-2xl overflow-hidden max-h-[80vh] flex flex-col">
-            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-              <h3 className="text-lg font-bold text-gray-800">Adicionar Membro à Equipe</h3>
-              <button onClick={() => setShowAddMember(false)}><XIcon className="w-6 h-6 text-gray-400" /></button>
-            </div>
-            <div className="p-6 overflow-y-auto">
-              <p className="text-sm text-gray-500 mb-4">Apenas membros com status <strong>Aguardando</strong> estão disponíveis para vinculação.</p>
-              <div className="space-y-2">
-                {waitingMembers.map(member => (
-                  <div key={member.id} className="flex items-center justify-between p-3 border border-gray-100 rounded-xl hover:bg-blue-50 transition-colors">
-                    <div className="flex items-center gap-3">
-                       <div className="w-8 h-8 rounded-full bg-yellow-100 text-yellow-700 flex items-center justify-center text-xs font-bold uppercase">
-                        {member.name.substring(0, 2)}
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-gray-900">{member.name}</p>
-                        <p className="text-xs text-gray-500">{member.phone}</p>
-                      </div>
-                    </div>
-                    <button onClick={() => handleAttachMember(member)} className="text-blue-600 text-sm font-bold hover:underline">Vincular</button>
+        <ModalShell
+          title="Adicionar membro à equipe"
+          subtitle="Apenas membros com status aguardando estão disponíveis para vinculação."
+          onClose={() => setShowAddMember(false)}
+          maxWidthClassName="max-w-2xl"
+        >
+          <div className="space-y-2">
+            {waitingMembers.map(member => (
+              <div key={member.id} className="flex items-center justify-between p-3 sm:p-4 border border-gray-100 rounded-2xl hover:bg-blue-50 transition-colors">
+                <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-9 h-9 rounded-xl bg-yellow-100 text-yellow-700 flex items-center justify-center text-xs font-black uppercase">
+                    {member.name.substring(0, 2)}
                   </div>
-                ))}
-                {waitingMembers.length === 0 && (
-                  <div className="text-center py-8">
-                    <p className="text-gray-400 italic">Nenhum membro aguardando vinculação.</p>
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-gray-900 truncate">{member.name}</p>
+                    <p className="text-xs text-gray-500 truncate">{member.phone}</p>
                   </div>
-                )}
+                </div>
+                <button onClick={() => handleAttachMember(member)} className="text-blue-600 text-xs sm:text-sm font-black uppercase tracking-wider hover:underline">Vincular</button>
               </div>
-            </div>
+            ))}
+            {waitingMembers.length === 0 && (
+              <div className="text-center py-10">
+                <p className="text-gray-400 italic">Nenhum membro aguardando vinculação.</p>
+              </div>
+            )}
           </div>
-        </div>
+        </ModalShell>
       )}
     </div>
   );
 };
-
-const XIcon = ({ className }: { className: string }) => (
-  <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-  </svg>
-);
 
 export default TeamDetail;
 
