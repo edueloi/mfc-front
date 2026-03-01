@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   Plus, 
   ArrowLeft, 
@@ -19,7 +19,8 @@ import {
   Info,
   Layers,
   MoreVertical,
-  Briefcase
+  Briefcase,
+  ArrowRightLeft
 } from 'lucide-react';
 import { api } from '../api';
 import { FinancialEntity } from '../types';
@@ -145,6 +146,35 @@ const GeneralLedger: React.FC = () => {
   };
 
   const selectedEntity = entities.find(e => e.id === selectedEntityId);
+  const spreadsheetScrollRef = useRef<HTMLDivElement | null>(null);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+
+  const updateScrollHints = () => {
+    const el = spreadsheetScrollRef.current;
+    if (!el) return;
+    setCanScrollLeft(el.scrollLeft > 8);
+    setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 8);
+  };
+
+  const handleLedgerHorizontalScroll = (direction: 'left' | 'right') => {
+    const el = spreadsheetScrollRef.current;
+    if (!el) return;
+    el.scrollBy({ left: direction === 'right' ? 380 : -380, behavior: 'smooth' });
+  };
+
+  useEffect(() => {
+    if (view !== 'detail') return;
+    const el = spreadsheetScrollRef.current;
+    if (!el) return;
+    updateScrollHints();
+    el.addEventListener('scroll', updateScrollHints);
+    window.addEventListener('resize', updateScrollHints);
+    return () => {
+      el.removeEventListener('scroll', updateScrollHints);
+      window.removeEventListener('resize', updateScrollHints);
+    };
+  }, [view, selectedEntityId]);
 
   const renderList = () => (
     <div className="space-y-8 animate-in fade-in duration-500">
@@ -310,8 +340,39 @@ const GeneralLedger: React.FC = () => {
           </div>
         </div>
 
-        <div className="overflow-x-auto overflow-y-auto no-scrollbar relative flex-1">
-          <table className="w-full text-left border-separate border-spacing-0">
+        <div className="px-6 py-3 border-b border-gray-100 bg-gradient-to-r from-blue-50/70 via-white to-blue-50/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-gray-500">
+            <ArrowRightLeft className="w-4 h-4 text-blue-600" />
+            Arraste para os lados para ver todos os meses e o total anual
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => handleLedgerHorizontalScroll('left')}
+              disabled={!canScrollLeft}
+              className="px-3 py-2 rounded-xl border border-gray-200 bg-white text-[10px] font-black uppercase tracking-widest text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              ← Ver início
+            </button>
+            <button
+              type="button"
+              onClick={() => handleLedgerHorizontalScroll('right')}
+              disabled={!canScrollRight}
+              className="px-3 py-2 rounded-xl border border-blue-200 bg-blue-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Ver direita →
+            </button>
+          </div>
+        </div>
+
+        <div ref={spreadsheetScrollRef} className="overflow-x-auto overflow-y-auto relative flex-1 scrollbar-thin scrollbar-thumb-blue-200 scrollbar-track-blue-50">
+          {canScrollRight && (
+            <div className="pointer-events-none absolute right-0 top-0 z-20 h-full w-10 bg-gradient-to-l from-white via-white/80 to-transparent" />
+          )}
+          {canScrollLeft && (
+            <div className="pointer-events-none absolute left-0 top-0 z-20 h-full w-10 bg-gradient-to-r from-white via-white/80 to-transparent" />
+          )}
+          <table className="w-full text-left border-separate border-spacing-0 min-w-[1760px]">
             <thead className="sticky top-0 z-30">
               <tr className="bg-slate-50">
                 <th className="sticky left-0 top-0 z-40 bg-slate-50 px-8 py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest border-r border-b border-gray-100 min-w-[320px] shadow-[2px_0_5px_rgba(0,0,0,0.01)]">
