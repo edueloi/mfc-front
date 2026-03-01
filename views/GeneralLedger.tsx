@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   Plus, 
   ArrowLeft, 
@@ -19,7 +19,8 @@ import {
   Info,
   Layers,
   MoreVertical,
-  Briefcase
+  Briefcase,
+  ArrowRightLeft
 } from 'lucide-react';
 import { api } from '../api';
 import { FinancialEntity } from '../types';
@@ -30,6 +31,8 @@ const GeneralLedger: React.FC = () => {
   const [showLaunchModal, setShowLaunchModal] = useState(false);
   const [showEntityModal, setShowEntityModal] = useState(false);
   const [notification, setNotification] = useState<string | null>(null);
+  const [entitySearch, setEntitySearch] = useState('');
+  const [entityYearFilter, setEntityYearFilter] = useState<'all' | number>('all');
 
   const [entities, setEntities] = useState<FinancialEntity[]>([]);
 
@@ -63,18 +66,36 @@ const GeneralLedger: React.FC = () => {
     Receita: [
       { id: '1.1.1', label: 'Receitas de Vendas - Dinheiro' },
       { id: '1.1.2', label: 'Receitas de Vendas - PIX' },
-      { id: '1.1.3', label: 'Receitas de Vendas - CartÃ£o' },
+      { id: '1.1.3', label: 'Receitas de Vendas - Cartão' },
       { id: '1.1.4', label: 'Outros' },
     ],
     Despesa: [
       { id: '2.1.1', label: 'Ajuda de Custos a Colaboradores' },
-      { id: '2.1.2', label: 'Material Acervo LiterÃ¡rio' },
+      { id: '2.1.2', label: 'Material Acervo Literário' },
       { id: '2.1.3', label: 'Telefone / Internet' },
       { id: '2.1.7', label: 'INSS / DARF' },
-      { id: '2.1.11', label: 'SalÃ¡rio / M.O' },
+      { id: '2.1.11', label: 'Salário / M.O' },
       { id: '2.1.15', label: 'Tarifa Maquininha' },
     ]
   };
+
+  const filteredEntities = useMemo(() => {
+    return entities
+      .filter((entity) =>
+        entity.name.toLowerCase().includes(entitySearch.toLowerCase()) ||
+        String(entity.year).includes(entitySearch)
+      )
+      .filter((entity) => (entityYearFilter === 'all' ? true : entity.year === entityYearFilter))
+      .sort((a, b) => b.year - a.year);
+  }, [entities, entitySearch, entityYearFilter]);
+
+  const listStats = useMemo(() => {
+    return filteredEntities.reduce((acc, entity) => {
+      acc.total += 1;
+      acc.balance += Number(entity.initialBalance) || 0;
+      return acc;
+    }, { total: 0, balance: 0 });
+  }, [filteredEntities]);
 
   const notify = (msg: string) => {
     setNotification(msg);
@@ -125,6 +146,89 @@ const GeneralLedger: React.FC = () => {
   };
 
   const selectedEntity = entities.find(e => e.id === selectedEntityId);
+  const monthlyRevenueValue = 7100;
+  const monthlyExpenseValue = 850;
+  const annualRevenueTotal = categories.Receita.length * monthlyRevenueValue * 12;
+  const annualExpenseTotal = categories.Despesa.length * monthlyExpenseValue * 12;
+  const estimatedResult = annualRevenueTotal - annualExpenseTotal + Number(selectedEntity?.initialBalance || 0);
+
+  const formatCurrency = (value: number) => value.toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+  const spreadsheetScrollRef = useRef<HTMLDivElement | null>(null);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [scrollProgress, setScrollProgress] = useState(0);
+  const [focusedMonthIndex, setFocusedMonthIndex] = useState<number | null>(null);
+
+  const updateScrollHints = () => {
+    const el = spreadsheetScrollRef.current;
+    if (!el) return;
+    const maxScrollLeft = Math.max(el.scrollWidth - el.clientWidth, 1);
+    setCanScrollLeft(el.scrollLeft > 8);
+    setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 8);
+    setScrollProgress(Math.min(100, Math.max(0, (el.scrollLeft / maxScrollLeft) * 100)));
+  };
+
+  const handleLedgerHorizontalScroll = (direction: 'left' | 'right') => {
+    const el = spreadsheetScrollRef.current;
+    if (!el) return;
+    el.scrollBy({ left: direction === 'right' ? 380 : -380, behavior: 'smooth' });
+  };
+
+  const handleLedgerScrollToEdge = (direction: 'start' | 'end') => {
+    const el = spreadsheetScrollRef.current;
+    if (!el) return;
+    el.scrollTo({ left: direction === 'end' ? el.scrollWidth : 0, behavior: 'smooth' });
+  };
+
+  useEffect(() => {
+    if (view !== 'detail') return;
+    const el = spreadsheetScrollRef.current;
+    if (!el) return;
+    updateScrollHints();
+    el.addEventListener('scroll', updateScrollHints);
+    window.addEventListener('resize', updateScrollHints);
+    return () => {
+      el.removeEventListener('scroll', updateScrollHints);
+      window.removeEventListener('resize', updateScrollHints);
+    };
+  }, [view, selectedEntityId]);
+
+  const handleExportSpreadsheetCsv = () => {
+    if (!selectedEntity) return;
+
+    const headers = ['Item de Controle', ...monthNames, 'Total Anual'];
+    const rows: string[][] = [];
+
+    rows.push(['1. RECEITAS', ...Array(12).fill(''), '']);
+    categories.Receita.forEach((acc) => {
+      const monthlyValues = Array(12).fill(monthlyRevenueValue);
+      rows.push([`${acc.id} ${acc.label}`, ...monthlyValues.map((value) => formatCurrency(value)), formatCurrency(monthlyValues.reduce((a, b) => a + b, 0))]);
+    });
+
+    rows.push(['2. DESPESAS', ...Array(12).fill(''), '']);
+    categories.Despesa.forEach((acc) => {
+      const monthlyValues = Array(12).fill(monthlyExpenseValue);
+      rows.push([`${acc.id} ${acc.label}`, ...monthlyValues.map((value) => formatCurrency(value)), formatCurrency(monthlyValues.reduce((a, b) => a + b, 0))]);
+    });
+
+    rows.push(['Saldo Final', ...Array(12).fill(''), formatCurrency(estimatedResult)]);
+
+    const csv = [headers, ...rows]
+      .map((cols) => cols.map((col) => `"${String(col).replace(/"/g, '""')}"`).join(';'))
+      .join('\n');
+
+    const blob = new Blob([`\ufeff${csv}`], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `livro-caixa-${selectedEntity.name.toLowerCase().replace(/\s+/g, '-')}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    notify('CSV do Livro Caixa exportado com sucesso!');
+  };
 
   const renderList = () => (
     <div className="space-y-8 animate-in fade-in duration-500">
@@ -142,12 +246,51 @@ const GeneralLedger: React.FC = () => {
         </button>
       </div>
 
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
+          <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Livros filtrados</p>
+          <p className="text-3xl font-black text-gray-900 mt-2">{listStats.total}</p>
+        </div>
+        <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
+          <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Saldo inicial consolidado</p>
+          <p className="text-3xl font-black text-blue-600 mt-2">R$ {listStats.balance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+        </div>
+        <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
+          <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Média por livro</p>
+          <p className="text-3xl font-black text-emerald-600 mt-2">R$ {(listStats.balance / Math.max(listStats.total, 1)).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+        </div>
+      </div>
+
+      <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="relative sm:col-span-2">
+            <FileText className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-300" />
+            <input
+              value={entitySearch}
+              onChange={(e) => setEntitySearch(e.target.value)}
+              placeholder="Buscar por nome ou exercício..."
+              className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-semibold"
+            />
+          </div>
+          <select
+            value={entityYearFilter}
+            onChange={(e) => setEntityYearFilter(e.target.value === 'all' ? 'all' : Number(e.target.value))}
+            className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-xs font-black uppercase tracking-wider text-gray-600"
+          >
+            <option value="all">Todos os anos</option>
+            {Array.from(new Set(entities.map((entity) => entity.year))).sort((a, b) => b - a).map((year) => (
+              <option key={year} value={year}>{year}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-        {entities.map(entity => (
+        {filteredEntities.map(entity => (
           <div 
             key={entity.id} 
             onClick={() => { setSelectedEntityId(entity.id); setView('detail'); }}
-            className="bg-white rounded-[2.5rem] border border-gray-100 shadow-sm hover:shadow-2xl hover:-translate-y-2 transition-all cursor-pointer group flex flex-col overflow-hidden relative"
+            className="bg-white rounded-3xl border border-gray-100 shadow-sm hover:shadow-2xl hover:-translate-y-2 transition-all cursor-pointer group flex flex-col overflow-hidden relative"
           >
             <div className="p-10 flex-1 relative z-10">
               <div className="flex items-center justify-between mb-8">
@@ -160,7 +303,7 @@ const GeneralLedger: React.FC = () => {
               </div>
               <h3 className="text-xl font-black text-gray-900 mb-3 group-hover:text-blue-600 transition-colors leading-tight">{entity.name}</h3>
               <p className="text-sm text-gray-500 line-clamp-2 leading-relaxed mb-8 font-medium italic">
-                {entity.observations || 'Sem observaÃ§Ãµes.'}
+                {entity.observations || 'Sem observações.'}
               </p>
               <div className="flex items-center gap-6 pt-6 border-t border-gray-50">
                 <div className="space-y-1">
@@ -176,6 +319,12 @@ const GeneralLedger: React.FC = () => {
           </div>
         ))}
       </div>
+
+      {filteredEntities.length === 0 && (
+        <div className="bg-white border border-gray-100 rounded-2xl p-10 text-center text-gray-400 font-semibold">
+          Nenhum livro encontrado com os filtros atuais.
+        </div>
+      )}
     </div>
   );
 
@@ -198,6 +347,12 @@ const GeneralLedger: React.FC = () => {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <button
+            onClick={handleExportSpreadsheetCsv}
+            className="px-5 py-3 bg-white border border-gray-100 text-gray-600 rounded-2xl font-bold text-[10px] uppercase tracking-widest hover:bg-gray-50 transition-all flex items-center gap-2"
+          >
+            <Download className="w-4 h-4" /> Exportar CSV
+          </button>
           <button className="px-5 py-3 bg-white border border-gray-100 text-gray-600 rounded-2xl font-bold text-[10px] uppercase tracking-widest hover:bg-gray-50 transition-all flex items-center gap-2">
             <Printer className="w-4 h-4" /> Imprimir
           </button>
@@ -210,16 +365,110 @@ const GeneralLedger: React.FC = () => {
         </div>
       </div>
 
-      <div className="bg-white rounded-[2.5rem] border border-gray-100 shadow-2xl flex-1 overflow-hidden flex flex-col">
-        <div className="overflow-x-auto overflow-y-auto no-scrollbar relative flex-1">
-          <table className="w-full text-left border-separate border-spacing-0">
+      <div className="bg-white rounded-3xl border border-gray-100 shadow-2xl flex-1 overflow-hidden flex flex-col">
+        <div className="p-6 border-b border-gray-100 bg-gray-50/60 grid grid-cols-1 lg:grid-cols-4 gap-3">
+          <div className="bg-white rounded-xl border border-gray-100 p-4">
+            <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Saldo inicial</p>
+            <p className="text-2xl font-black text-blue-600 mt-1">R$ {Number(selectedEntity?.initialBalance || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+          </div>
+          <div className="bg-white rounded-xl border border-gray-100 p-4">
+            <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Receita projetada</p>
+            <p className="text-2xl font-black text-emerald-600 mt-1">R$ {formatCurrency(annualRevenueTotal)}</p>
+          </div>
+          <div className="bg-white rounded-xl border border-gray-100 p-4">
+            <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Despesa projetada</p>
+            <p className="text-2xl font-black text-red-500 mt-1">R$ {formatCurrency(annualExpenseTotal)}</p>
+          </div>
+          <div className="bg-white rounded-xl border border-gray-100 p-4">
+            <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Resultado estimado</p>
+            <p className="text-2xl font-black text-purple-600 mt-1">R$ {formatCurrency(estimatedResult)}</p>
+          </div>
+        </div>
+
+        <div className="px-6 py-5 border-b border-gray-100 bg-white">
+          <h4 className="text-sm font-black text-gray-700 uppercase tracking-widest mb-3">Evolução mensal (visual rápido)</h4>
+          <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-6 gap-2">
+            {[42, 58, 51, 64, 60, 74, 68, 80, 73, 88, 91, 95].map((value, idx) => (
+              <div key={monthNames[idx]} className="bg-gray-50 rounded-xl p-2 border border-gray-100">
+                <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">{monthNames[idx].slice(0, 3)}</p>
+                <div className="h-1.5 rounded-full bg-gray-200 overflow-hidden">
+                  <div className="h-full bg-blue-600 transition-all duration-700" style={{ width: `${value}%` }} />
+                </div>
+                <p className="mt-1 text-[10px] font-black text-gray-600">{value}%</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="px-6 py-3 border-b border-gray-100 bg-gradient-to-r from-blue-50/70 via-white to-blue-50/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-gray-500">
+              <ArrowRightLeft className="w-4 h-4 text-blue-600" />
+              Arraste para os lados para ver todos os meses e o total anual
+            </div>
+            <div className="w-56 h-1.5 rounded-full bg-blue-100 overflow-hidden">
+              <div className="h-full bg-blue-600 transition-all duration-300" style={{ width: `${scrollProgress}%` }} />
+            </div>
+            <p className="text-[10px] font-bold text-blue-700">
+              Navegação horizontal: {scrollProgress.toFixed(0)}%
+              {focusedMonthIndex !== null ? ` • Foco: ${monthNames[focusedMonthIndex]}` : ''}
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => handleLedgerScrollToEdge('start')}
+              className="px-3 py-2 rounded-xl border border-gray-200 bg-white text-[10px] font-black uppercase tracking-widest text-gray-600 hover:bg-gray-50"
+            >
+              Janeiro
+            </button>
+            <button
+              type="button"
+              onClick={() => handleLedgerHorizontalScroll('left')}
+              disabled={!canScrollLeft}
+              className="px-3 py-2 rounded-xl border border-gray-200 bg-white text-[10px] font-black uppercase tracking-widest text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              ← Ver início
+            </button>
+            <button
+              type="button"
+              onClick={() => handleLedgerHorizontalScroll('right')}
+              disabled={!canScrollRight}
+              className="px-3 py-2 rounded-xl border border-blue-200 bg-blue-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Ver direita →
+            </button>
+            <button
+              type="button"
+              onClick={() => handleLedgerScrollToEdge('end')}
+              className="px-3 py-2 rounded-xl border border-blue-200 bg-white text-[10px] font-black uppercase tracking-widest text-blue-700 hover:bg-blue-50"
+            >
+              Dezembro
+            </button>
+          </div>
+        </div>
+
+        <div ref={spreadsheetScrollRef} tabIndex={0} onKeyDown={(e) => { if (e.key === 'ArrowRight') handleLedgerHorizontalScroll('right'); if (e.key === 'ArrowLeft') handleLedgerHorizontalScroll('left'); }} className="overflow-x-auto overflow-y-auto relative flex-1 scrollbar-thin scrollbar-thumb-blue-200 scrollbar-track-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-300">
+          {canScrollRight && (
+            <div className="pointer-events-none absolute right-0 top-0 z-20 h-full w-10 bg-gradient-to-l from-white via-white/80 to-transparent" />
+          )}
+          {canScrollLeft && (
+            <div className="pointer-events-none absolute left-0 top-0 z-20 h-full w-10 bg-gradient-to-r from-white via-white/80 to-transparent" />
+          )}
+          <table className="w-full text-left border-separate border-spacing-0 min-w-[1760px]">
             <thead className="sticky top-0 z-30">
               <tr className="bg-slate-50">
                 <th className="sticky left-0 top-0 z-40 bg-slate-50 px-8 py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest border-r border-b border-gray-100 min-w-[320px] shadow-[2px_0_5px_rgba(0,0,0,0.01)]">
                   Item de Controle
                 </th>
-                {monthNames.map(m => (
-                  <th key={m} className="px-4 py-5 text-[10px] font-black text-gray-400 uppercase text-center border-r border-b border-gray-100 min-w-[120px] bg-slate-50">{m}</th>
+                {monthNames.map((m, monthIdx) => (
+                  <th
+                    key={m}
+                    onClick={() => setFocusedMonthIndex(monthIdx)}
+                    className={`px-4 py-5 text-[10px] font-black uppercase text-center border-r border-b border-gray-100 min-w-[120px] cursor-pointer transition-colors ${focusedMonthIndex === monthIdx ? 'bg-blue-100 text-blue-700' : 'bg-slate-50 text-gray-400 hover:bg-blue-50'}`}
+                  >
+                    {m}
+                  </th>
                 ))}
                 <th className="px-6 py-5 text-[10px] font-black text-blue-600 uppercase text-center bg-blue-50/30 border-b border-gray-100 min-w-[140px]">Total Anual</th>
               </tr>
@@ -234,9 +483,9 @@ const GeneralLedger: React.FC = () => {
                     <span className="text-blue-500 mr-2 font-black">{acc.id}</span> {acc.label}
                   </td>
                   {monthNames.map((_, i) => (
-                    <td key={i} className="px-4 py-4 text-right border-r border-b border-gray-50 text-green-600 font-bold tabular-nums">7.100,00</td>
+                    <td key={i} className={`px-4 py-4 text-right border-r border-b border-gray-50 font-bold tabular-nums ${focusedMonthIndex === i ? 'bg-blue-50/60 text-blue-700' : 'text-green-600'}`}>{formatCurrency(monthlyRevenueValue)}</td>
                   ))}
-                  <td className="px-6 py-4 text-right bg-blue-50/10 border-b border-gray-50 font-black text-blue-700 tabular-nums">85.200,00</td>
+                  <td className="px-6 py-4 text-right bg-blue-50/10 border-b border-gray-50 font-black text-blue-700 tabular-nums">{formatCurrency(monthlyRevenueValue * 12)}</td>
                 </tr>
               ))}
               <tr className="bg-slate-800 text-white">
@@ -248,14 +497,14 @@ const GeneralLedger: React.FC = () => {
                     <span className="text-red-500 mr-2 font-black">{acc.id}</span> {acc.label}
                   </td>
                   {monthNames.map((_, i) => (
-                    <td key={i} className="px-4 py-4 text-right border-r border-b border-gray-50 text-red-500 font-medium tabular-nums">850,00</td>
+                    <td key={i} className={`px-4 py-4 text-right border-r border-b border-gray-50 font-medium tabular-nums ${focusedMonthIndex === i ? 'bg-red-50/70 text-red-700' : 'text-red-500'}`}>{formatCurrency(monthlyExpenseValue)}</td>
                   ))}
-                  <td className="px-6 py-4 text-right bg-gray-50/50 border-b border-gray-50 font-black text-red-700 tabular-nums">10.200,00</td>
+                  <td className="px-6 py-4 text-right bg-gray-50/50 border-b border-gray-50 font-black text-red-700 tabular-nums">{formatCurrency(monthlyExpenseValue * 12)}</td>
                 </tr>
               ))}
               <tr className="bg-blue-600 text-white">
                 <td className="sticky left-0 z-20 bg-blue-700 px-8 py-6 border-r border-blue-800 font-black uppercase text-[10px] tracking-widest shadow-[2px_0_5px_rgba(0,0,0,0.05)]">Saldo Final</td>
-                <td colSpan={13} className="px-10 py-6 text-right font-black text-2xl tracking-tight pr-16 italic">R$ (12.617,74)</td>
+                <td colSpan={13} className="px-10 py-6 text-right font-black text-2xl tracking-tight pr-16 italic">R$ {formatCurrency(estimatedResult)}</td>
               </tr>
             </tbody>
           </table>
@@ -277,8 +526,8 @@ const GeneralLedger: React.FC = () => {
 
       {/* MODAL NOVO LIVRO CAIXA */}
       {showEntityModal && (
-        <div className="fixed inset-0 z-[250] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
-           <div className="bg-white w-full max-w-lg rounded-[2.5rem] shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-300">
+        <div className="fixed inset-0 z-[250] flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm">
+           <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-300">
               <div className="p-8 border-b border-gray-50 flex items-center justify-between">
                  <div className="flex items-center gap-4">
                     <div className="w-12 h-12 bg-blue-600 rounded-2xl flex items-center justify-center text-white shadow-lg">
@@ -293,7 +542,7 @@ const GeneralLedger: React.FC = () => {
               </div>
               <div className="p-8 space-y-6">
                  <div>
-                    <label className="block text-[10px] font-black text-gray-400 uppercase mb-2 ml-1">TÃ­tulo</label>
+                    <label className="block text-[10px] font-black text-gray-400 uppercase mb-2 ml-1">Título</label>
                     <input type="text" className="w-full bg-gray-50 border border-gray-100 rounded-xl px-5 py-3.5 font-bold text-gray-700 focus:ring-4 focus:ring-blue-100 transition-all outline-none" value={newEntity.name} onChange={e => setNewEntity({...newEntity, name: e.target.value})} />
                  </div>
                  <div className="grid grid-cols-2 gap-4">
@@ -312,10 +561,10 @@ const GeneralLedger: React.FC = () => {
         </div>
       )}
 
-      {/* MODAL DE LANÃ‡AMENTO EM LOTE - REDESENHADO (SOFISTICADO & COMPACTO) */}
+      {/* MODAL DE LANÇAMENTO EM LOTE - REDESENHADO (SOFISTICADO & COMPACTO) */}
       {showLaunchModal && (
         <div className="fixed inset-0 z-[250] flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm overflow-y-auto">
-          <div className="bg-white w-full max-w-xl rounded-[2.5rem] shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-bottom-5 duration-400 border border-gray-100">
+          <div className="bg-white w-full max-w-xl rounded-3xl shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-bottom-5 duration-400 border border-gray-100">
             
             {/* Header Reduzido */}
             <div className="p-6 sm:p-8 border-b border-gray-50 flex items-center justify-between bg-white sticky top-0 z-20">
@@ -443,6 +692,5 @@ const GeneralLedger: React.FC = () => {
 };
 
 export default GeneralLedger;
-
 
 
