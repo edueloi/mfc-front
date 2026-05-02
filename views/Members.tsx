@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import {
   Search,
@@ -99,6 +99,7 @@ const FormCheck = ({ label, checked, onChange }: any) => (
 
 const Members: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
 
   // Filtros
   const [search, setSearch] = useState('');
@@ -167,6 +168,39 @@ const Members: React.FC = () => {
   useEffect(() => {
     if (cities.length > 0) setForm(p => ({ ...p, city: p.city || cities[0].name, state: p.state || cities[0].uf }));
   }, [cities]);
+
+  // Abre o modal de edição quando vindo do MemberProfile via navigate('/mfcistas', { state: { editId } })
+  useEffect(() => {
+    const editId = (location.state as any)?.editId;
+    if (!editId || !members.length) return;
+    const target = members.find(m => m.id === editId);
+    if (!target) return;
+    setForm({
+      name: target.name, nickname: target.nickname || '', dob: target.dob || '',
+      rg: maskRG(target.rg || ''), cpf: maskCPF(target.cpf || ''),
+      bloodType: target.bloodType || 'O+', gender: target.gender || 'Feminino',
+      maritalStatus: target.maritalStatus || 'Casado(a)', spouseName: target.spouseName || '',
+      spouseCpf: maskCPF(target.spouseCpf || ''), marriageDate: target.marriageDate || '',
+      mfcDate: target.mfcDate || new Date().toISOString().split('T')[0],
+      phone: maskPhone(target.phone || ''), emergencyPhone: maskPhone(target.emergencyPhone || ''),
+      street: target.street || '', number: target.number || '', neighborhood: target.neighborhood || '',
+      zip: maskCEP(target.zip || ''), complement: target.complement || '', city: target.city || 'Tatui',
+      state: target.state || 'SP', condir: target.condir || 'Sudeste', naturalness: target.naturalness || '',
+      father: target.father || '', mother: target.mother || '', smoker: target.smoker || false,
+      mobilityIssue: target.mobilityIssue || '', healthPlan: target.healthPlan || '', diet: target.diet || '',
+      medication: target.medication || '', allergy: target.allergy || '', pcd: target.pcd || false,
+      pcdDescription: target.pcdDescription || '', profession: target.profession || '',
+      religion: target.religion || 'Catolica', education: target.education || 'Superior completo',
+      createAccess: false, email: '', username: '', password: '', role: UserRoleType.USUARIO,
+      status: target.status || MemberStatus.AGUARDANDO, teamId: target.teamId || null,
+      photoUrl: target.photoUrl || '', familyName: target.familyName || '',
+      relationshipType: target.relationshipType || 'Titular', paysMonthly: target.paysMonthly !== false,
+    });
+    setEditingId(target.id);
+    setShowModal(true);
+    setActiveTab('pessoal');
+    navigate(location.pathname, { replace: true, state: {} });
+  }, [location.state, members]);
 
   // Stats
   const stats = useMemo(() => {
