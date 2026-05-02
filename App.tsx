@@ -15,6 +15,7 @@ import GeneralLedger from './views/GeneralLedger';
 import EventsView from './views/Events';
 import Login from './views/Login';
 import Reports from './views/Reports';
+import DailyEntries from './views/DailyEntries';
 import { User as UserType } from './types';
 
 const App: React.FC = () => {
@@ -110,6 +111,7 @@ const App: React.FC = () => {
           <Route path="eventos" element={<EventsView />} />
           <Route path="financeiro" element={<FinanceView cityId={currentUser.cityId} />} />
           <Route path="livro-caixa" element={<GeneralLedger />} />
+          <Route path="lancamentos" element={<DailyEntries />} />
           <Route path="usuarios" element={<UserManagement />} />
           <Route path="configuracoes" element={<SettingsView />} />
           <Route path="*" element={<Navigate to="/" replace />} />

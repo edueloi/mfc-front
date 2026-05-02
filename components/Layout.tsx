@@ -15,7 +15,8 @@ import {
   BookOpen,
   Ticket,
   Heart,
-  FileText
+  FileText,
+  FileSpreadsheet
 } from 'lucide-react';
 import { UserRoleType, User as UserType, City } from '../types';
 import { api } from '../api';
@@ -106,6 +107,12 @@ const Layout: React.FC<LayoutProps> = ({ currentUser, onLogout }) => {
       path: '/livro-caixa', 
       roles: [UserRoleType.ADMIN, UserRoleType.COORD_CIDADE, UserRoleType.COORD_ESTADO, UserRoleType.TESOUREIRO], 
       checkSpecial: (user: UserType) => user.role !== UserRoleType.TESOUREIRO || !user.teamId 
+    },
+    { 
+      name: 'Lançamentos Diários', 
+      icon: FileSpreadsheet, 
+      path: '/lancamentos', 
+      roles: [UserRoleType.ADMIN, UserRoleType.COORD_CIDADE, UserRoleType.COORD_ESTADO, UserRoleType.TESOUREIRO], 
     },
     { 
       name: 'Usuários Sistema', 

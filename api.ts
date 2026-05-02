@@ -1,9 +1,16 @@
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
 
 const request = async (path: string, options: RequestInit = {}) => {
+  const headers = { ...options.headers } as Record<string, string>;
+  
+  // if body is form data, don't set application/json
+  if (!(options.body instanceof FormData) && !headers['Content-Type']) {
+    headers['Content-Type'] = 'application/json';
+  }
+
   const res = await fetch(`${API_URL}${path}`, {
-    headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
-    ...options
+    ...options,
+    headers
   });
 
   if (!res.ok) {
@@ -79,5 +86,15 @@ export const api = {
   buscarCEP: (cep: string) => request(`/api/cep/${cep}`),
   getEstados: () => request('/api/estados'),
   getCidadesPorEstado: (uf: string) => request(`/api/estados/${uf}/cidades`),
-  getTodasCidades: () => request('/api/cidades')
+  getTodasCidades: () => request('/api/cidades'),
+
+  // Lançamentos Diários (Importação Planilha)
+  getDailyEntries: () => request('/daily-entries'),
+  importDailyEntries: (file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return request('/daily-entries/import', { method: 'POST', body: formData as any, headers: { 'Accept': 'application/json' } });
+  },
+  clearDailyEntries: () => request('/daily-entries/clear', { method: 'DELETE' }),
+  getDailyStats: () => request('/daily-entries/stats')
 };

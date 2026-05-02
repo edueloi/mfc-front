@@ -1,4 +1,39 @@
-/* Melhorias de Responsividade Global */
+/* ── Design System: classes base ──────────────────────────────────────────── */
+
+.ds-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: #71717a;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+}
+
+.ds-input {
+  display: block;
+  width: 100%;
+  height: 44px;
+  padding: 0 12px;
+  background-color: #fafafa;
+  border: 1px solid #e4e4e7;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #27272a;
+  outline: none;
+  transition: border-color 150ms, box-shadow 150ms;
+}
+
+.ds-input:focus {
+  border-color: #f59e0b;
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.1);
+  background-color: #fff;
+}
+
+.font-display {
+  font-family: 'Inter', sans-serif;
+}
+
+/* ── Melhorias de Responsividade Global ───────────────────────────────────── */
 html {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;

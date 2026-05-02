@@ -1,24 +1,23 @@
-
 import React, { useState, useEffect } from 'react';
-import { 
-  Lock, 
-  User, 
-  Eye, 
-  EyeOff, 
-  AlertCircle, 
-  CheckCircle2, 
-  Users, 
+import {
+  Lock,
+  User,
+  Eye,
+  EyeOff,
+  AlertCircle,
+  CheckCircle2,
+  Users,
   Heart,
   ChevronRight,
   ShieldCheck,
   LayoutDashboard,
   BookOpen,
-  History,
   ArrowLeft,
   Mail
 } from 'lucide-react';
 import { api } from '../api';
 import { User as UserType } from '../types';
+import { Input, Button, Switch } from '../components/ui';
 
 interface LoginProps {
   onLogin: (user: UserType) => void;
@@ -36,7 +35,6 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // Carregar credenciais salvas
   useEffect(() => {
     const savedUsername = localStorage.getItem('mfc_username');
     const savedPassword = localStorage.getItem('mfc_password');
@@ -52,7 +50,6 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
     setError('');
     setLoading(true);
 
-    // Salvar ou remover credenciais
     if (rememberMe) {
       localStorage.setItem('mfc_username', username);
       localStorage.setItem('mfc_password', password);
@@ -84,7 +81,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
 
   return (
     <div className="min-h-screen w-full flex bg-[#F8FAFC] overflow-hidden font-sans">
-      
+
       {/* LADO ESQUERDO: FORMULÁRIO */}
       <div className="w-full lg:w-[40%] flex flex-col justify-center p-8 sm:p-12 xl:p-20 relative bg-white z-10 shadow-xl">
         <div className="lg:hidden flex items-center gap-3 mb-10">
@@ -105,92 +102,73 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                 </p>
               </header>
 
-              <form onSubmit={handleSubmit} className="space-y-6">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Usuário</label>
-                  <div className="relative group">
-                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                      <User className="h-5 w-5 text-slate-300 group-focus-within:text-blue-600 transition-colors" />
-                    </div>
-                    <input
-                      type="text"
-                      required
-                      className="block w-full pl-12 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 placeholder-slate-300 focus:outline-none focus:ring-4 focus:ring-blue-500/5 focus:border-blue-600 focus:bg-white transition-all font-semibold text-sm shadow-sm"
-                      placeholder="Identificador"
-                      value={username}
-                      onChange={(e) => setUsername(e.target.value)}
-                    />
-                  </div>
-                </div>
+              <form onSubmit={handleSubmit} className="space-y-5">
+                <Input
+                  label="Usuário"
+                  type="text"
+                  required
+                  placeholder="Identificador"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  iconLeft={<User className="w-4 h-4" />}
+                />
 
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Senha</label>
-                  <div className="relative group">
-                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                      <Lock className="h-5 w-5 text-slate-300 group-focus-within:text-blue-600 transition-colors" />
-                    </div>
-                    <input
-                      type={showPassword ? 'text' : 'password'}
-                      required
-                      className="block w-full pl-12 pr-12 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 placeholder-slate-300 focus:outline-none focus:ring-4 focus:ring-blue-500/5 focus:border-blue-600 focus:bg-white transition-all font-semibold text-sm shadow-sm"
-                      placeholder="••••••••"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                    />
+                <Input
+                  label="Senha"
+                  type={showPassword ? 'text' : 'password'}
+                  required
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  iconLeft={<Lock className="w-4 h-4" />}
+                  iconRight={
                     <button
                       type="button"
-                      className="absolute inset-y-0 right-0 pr-4 flex items-center text-slate-300 hover:text-blue-600 transition-colors"
+                      tabIndex={-1}
+                      className="text-zinc-400 hover:text-blue-600 transition-colors"
                       onClick={() => setShowPassword(!showPassword)}
                     >
-                      {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
-                  </div>
-                  <button 
-                    type="button" 
-                    onClick={() => setView('recover')}
-                    className="text-[10px] font-bold text-blue-600 hover:text-blue-700 hover:underline transition-colors ml-1 mt-1.5 inline-block"
-                  >
-                    Esqueceu sua senha?
-                  </button>
-                </div>
+                  }
+                />
 
-                <div className="flex items-center gap-3 px-1 py-1">
-                  <label className="flex items-center gap-3 cursor-pointer group">
-                    <div className="relative flex items-center">
-                      <input
-                        type="checkbox"
-                        checked={rememberMe}
-                        onChange={(e) => setRememberMe(e.target.checked)}
-                        className="w-5 h-5 rounded-md border-2 border-slate-300 text-blue-600 focus:ring-4 focus:ring-blue-500/20 transition-all cursor-pointer checked:bg-blue-600 checked:border-blue-600"
-                      />
-                    </div>
-                    <span className="text-sm font-semibold text-slate-600 group-hover:text-slate-900 transition-colors select-none">
-                      Lembrar meus dados
-                    </span>
-                  </label>
+                <button
+                  type="button"
+                  onClick={() => setView('recover')}
+                  className="text-[10px] font-bold text-blue-600 hover:text-blue-700 hover:underline transition-colors"
+                >
+                  Esqueceu sua senha?
+                </button>
+
+                <div className="flex items-center gap-3 py-1">
+                  <Switch
+                    checked={rememberMe}
+                    onCheckedChange={setRememberMe}
+                  />
+                  <span className="text-sm font-semibold text-slate-600 select-none cursor-pointer" onClick={() => setRememberMe(!rememberMe)}>
+                    Lembrar meus dados
+                  </span>
                 </div>
 
                 {error && (
                   <div className="bg-red-50 border border-red-100 rounded-xl p-4 flex items-start gap-3 text-red-600 text-xs font-bold animate-in fade-in zoom-in-95 duration-200">
-                    <AlertCircle className="h-4 w-4 shrink-0" />
+                    <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
                     <span>{error}</span>
                   </div>
                 )}
 
-                <button
+                <Button
                   type="submit"
-                  disabled={loading}
-                  className="group w-full flex items-center justify-center gap-2 py-4 bg-slate-900 hover:bg-black disabled:bg-slate-300 text-white font-black rounded-xl shadow-lg transition-all active:scale-[0.98] uppercase tracking-widest text-xs"
+                  variant="primary"
+                  size="lg"
+                  loading={loading}
+                  fullWidth
+                  iconRight={!loading ? <ChevronRight className="w-4 h-4" /> : undefined}
+                  className="uppercase tracking-widest"
                 >
-                  {loading ? (
-                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  ) : (
-                    <>
-                      Entrar no Sistema
-                      <ChevronRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
-                    </>
-                  )}
-                </button>
+                  Entrar no Sistema
+                </Button>
               </form>
             </>
           )}
@@ -198,7 +176,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
           {view === 'recover' && (
             <div className="animate-in slide-in-from-right-4 duration-300">
               <header className="mb-10">
-                <button 
+                <button
                   onClick={() => setView('login')}
                   className="flex items-center gap-2 text-slate-400 hover:text-blue-600 transition-colors text-[10px] font-black uppercase tracking-widest mb-6 group"
                 >
@@ -211,36 +189,27 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
               </header>
 
               <form onSubmit={handleRecover} className="space-y-6">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">E-mail de Cadastro</label>
-                  <div className="relative group">
-                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                      <Mail className="h-5 w-5 text-slate-300 group-focus-within:text-blue-600 transition-colors" />
-                    </div>
-                    <input
-                      type="email"
-                      required
-                      className="block w-full pl-12 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 placeholder-slate-300 focus:outline-none focus:ring-4 focus:ring-blue-500/5 focus:border-blue-600 focus:bg-white transition-all font-semibold text-sm shadow-sm"
-                      placeholder="exemplo@mfc.org"
-                      value={recoverEmail}
-                      onChange={(e) => setRecoverEmail(e.target.value)}
-                    />
-                  </div>
-                </div>
-                <button
+                <Input
+                  label="E-mail de Cadastro"
+                  type="email"
+                  required
+                  placeholder="exemplo@mfc.org"
+                  value={recoverEmail}
+                  onChange={(e) => setRecoverEmail(e.target.value)}
+                  iconLeft={<Mail className="w-4 h-4" />}
+                />
+
+                <Button
                   type="submit"
-                  disabled={loading}
-                  className="group w-full flex items-center justify-center gap-2 py-4 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 text-white font-black rounded-xl shadow-lg transition-all active:scale-[0.98] uppercase tracking-widest text-xs"
+                  variant="primary"
+                  size="lg"
+                  loading={loading}
+                  fullWidth
+                  iconRight={!loading ? <ChevronRight className="w-4 h-4" /> : undefined}
+                  className="uppercase tracking-widest"
                 >
-                  {loading ? (
-                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  ) : (
-                    <>
-                      Enviar Link
-                      <ChevronRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
-                    </>
-                  )}
-                </button>
+                  Enviar Link
+                </Button>
               </form>
             </div>
           )}
@@ -254,22 +223,26 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
               <p className="text-slate-500 font-medium text-sm leading-relaxed mb-10 px-4">
                 Verifique sua caixa de entrada para continuar o processo de recuperação.
               </p>
-              <button 
+              <Button
+                type="button"
+                variant="outline"
+                size="lg"
+                fullWidth
                 onClick={() => setView('login')}
-                className="w-full py-4 bg-slate-50 text-slate-600 font-black rounded-xl border border-slate-200 hover:bg-slate-100 transition-all uppercase tracking-widest text-xs"
+                className="uppercase tracking-widest"
               >
                 Voltar ao Login
-              </button>
+              </Button>
             </div>
           )}
-</div>
+        </div>
       </div>
 
       {/* LADO DIREITO: PROPÓSITO DO SISTEMA */}
       <div className="hidden lg:flex w-[60%] bg-blue-600 relative overflow-hidden items-center justify-center p-20">
         <div className="absolute inset-0 bg-gradient-to-br from-blue-700 via-blue-800 to-indigo-950"></div>
         <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-white/5 rounded-full -mr-96 -mt-96 blur-3xl"></div>
-        
+
         <div className="relative z-10 max-w-xl w-full text-white">
           <div className="flex items-center gap-4 mb-12 animate-in fade-in slide-in-from-left duration-700">
             <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center text-blue-700 font-black text-3xl shadow-2xl rotate-3">M</div>
@@ -314,10 +287,10 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
           </div>
 
           <div className="pt-8 border-t border-white/10 flex items-center gap-4 animate-in fade-in slide-in-from-bottom-5 duration-700 delay-300">
-             <Heart className="w-6 h-6 text-red-400 fill-red-400/20" />
-             <p className="text-xs font-bold text-blue-100/60 italic uppercase tracking-wider">
-               Ferramenta de Apoio à Missão do MFC
-             </p>
+            <Heart className="w-6 h-6 text-red-400 fill-red-400/20" />
+            <p className="text-xs font-bold text-blue-100/60 italic uppercase tracking-wider">
+              Ferramenta de Apoio à Missão do MFC
+            </p>
           </div>
         </div>
       </div>
@@ -326,5 +299,3 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
 };
 
 export default Login;
-
-
