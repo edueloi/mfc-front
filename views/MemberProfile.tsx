@@ -1,236 +1,309 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft,
   MapPin,
   Phone,
-  Mail,
   Calendar,
   Heart,
-  Briefcase,
   Award,
   History,
   ShieldAlert,
+  UserCheck,
+  Layers,
   Edit,
-  UserCheck
+  Cigarette,
+  Accessibility,
+  BookOpen,
+  Briefcase,
 } from 'lucide-react';
 import { api } from '../api';
 import { Member, BaseTeam } from '../types';
+import {
+  PageWrapper,
+  SectionTitle,
+  ContentCard,
+  Button,
+  Badge,
+  Divider,
+  PanelCard,
+} from '../components/ui';
+
+// ── InfoItem ──────────────────────────────────────────────────────────────────
+
+const InfoItem = ({ label, value }: { label: string; value?: string | null }) => (
+  <div className="space-y-1">
+    <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">{label}</p>
+    <p className="text-sm font-semibold text-zinc-900">{value?.trim() || <span className="text-zinc-300 italic">—</span>}</p>
+  </div>
+);
+
+// ── Componente principal ──────────────────────────────────────────────────────
+
 const MemberProfile: React.FC = () => {
   const { memberId } = useParams<{ memberId: string }>();
   const navigate = useNavigate();
-    const [member, setMember] = useState<Member | null>(null);
+  const [member, setMember] = useState<Member | null>(null);
   const [teams, setTeams] = useState<BaseTeam[]>([]);
+  const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'pessoal' | 'endereco' | 'saude' | 'historico' | 'acesso'>('pessoal');
 
   const loadData = () => {
-    api.getMembers()
-      .then((items: Member[]) => {
-        const found = items.find(m => m.id === memberId) || null;
-        setMember(found);
+    Promise.all([api.getMembers(), api.getTeams()])
+      .then(([members, ts]) => {
+        setMember(members.find((m: Member) => m.id === memberId) || null);
+        setTeams(ts);
       })
-      .catch(() => setMember(null));
-
-    api.getTeams()
-      .then((items: BaseTeam[]) => setTeams(items))
-      .catch(() => setTeams([]));
+      .catch(() => { setMember(null); setTeams([]); })
+      .finally(() => setLoading(false));
   };
 
   useEffect(() => {
     loadData();
-
-    const handleFocus = () => loadData();
-    window.addEventListener('focus', handleFocus);
-    
-    const interval = setInterval(loadData, 30000);
-
-    return () => {
-      window.removeEventListener('focus', handleFocus);
-      clearInterval(interval);
-    };
+    window.addEventListener('focus', loadData);
+    const iv = setInterval(loadData, 30000);
+    return () => { window.removeEventListener('focus', loadData); clearInterval(iv); };
   }, [memberId]);
 
-  if (!member) return <div>Membro Não encontrado</div>;
+  if (loading) {
+    return (
+      <PageWrapper>
+        <div className="flex items-center justify-center py-24">
+          <div className="w-8 h-8 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
+        </div>
+      </PageWrapper>
+    );
+  }
+
+  if (!member) {
+    return (
+      <PageWrapper>
+        <div className="flex flex-col items-center justify-center py-24 gap-4">
+          <p className="text-zinc-400 font-bold text-sm uppercase tracking-widest">MFCista não encontrado</p>
+          <Button variant="outline" size="sm" iconLeft={<ArrowLeft className="w-4 h-4" />} onClick={() => navigate('/mfcistas')}>
+            Voltar
+          </Button>
+        </div>
+      </PageWrapper>
+    );
+  }
 
   const teamName = teams.find(t => t.id === member.teamId)?.name || 'Sem equipe';
 
-  const tabs = [
-    { id: 'pessoal', label: 'Dados Pessoais', icon: UserCheck },
-    { id: 'endereco', label: 'Endereço', icon: MapPin },
-    { id: 'saude', label: 'Outros / Saúde', icon: Heart },
-    { id: 'historico', label: 'Histórico / Cargos', icon: Award },
-    { id: 'acesso', label: 'Dados Acesso', icon: History },
-  ];
+  const calcYears = (d: string) => {
+    if (!d) return 0;
+    const today = new Date();
+    const dt = new Date(d);
+    let y = today.getFullYear() - dt.getFullYear();
+    const m = today.getMonth() - dt.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < dt.getDate())) y--;
+    return y;
+  };
+
+  const TABS = [
+    { id: 'pessoal',   label: 'Dados Pessoais',   icon: UserCheck },
+    { id: 'endereco',  label: 'Endereço',          icon: MapPin },
+    { id: 'saude',     label: 'Outros / Saúde',    icon: Heart },
+    { id: 'historico', label: 'Cargos',            icon: Award },
+    { id: 'acesso',    label: 'Acesso',            icon: History },
+  ] as const;
 
   return (
-    <div className="space-y-6 pb-12">
-      <div className="flex items-center gap-3 sm:gap-4">
-        <button onClick={() => navigate('/mfcistas')} className="p-2 hover:bg-gray-100 rounded-full transition-colors flex-shrink-0">
-          <ArrowLeft className="w-5 h-5 sm:w-6 sm:h-6 text-gray-600" />
-        </button>
-        <h2 className="text-xl sm:text-2xl font-bold text-gray-800">Perfil do MFCista</h2>
-      </div>
+    <PageWrapper>
+      <div className="space-y-6">
 
-      {/* Header Card */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-        <div className="h-24 sm:h-32 bg-gradient-to-r from-blue-600 to-indigo-700"></div>
-        <div className="px-5 sm:px-8 pb-6 sm:pb-8">
-          <div className="flex flex-col md:flex-row md:items-end gap-4 sm:gap-6 -mt-10 sm:-mt-12">
-            <div className="w-20 h-20 sm:w-24 sm:h-24 md:w-32 md:h-32 rounded-2xl bg-white p-1 shadow-lg flex-shrink-0">
-              <div className="w-full h-full bg-blue-100 rounded-xl flex items-center justify-center text-blue-700 text-2xl sm:text-3xl font-bold uppercase">
-                {member.name.substring(0, 2)}
+        {/* Back + title */}
+        <SectionTitle
+          title="Perfil do MFCista"
+          icon={UserCheck}
+          action={
+            <Button variant="ghost" size="sm" iconLeft={<ArrowLeft className="w-4 h-4" />} onClick={() => navigate('/mfcistas')}>
+              Voltar
+            </Button>
+          }
+        />
+
+        {/* Hero card */}
+        <ContentCard padding="none" className="overflow-hidden">
+          {/* Banner */}
+          <div className="h-28 sm:h-36 bg-gradient-to-r from-slate-800 via-blue-900 to-indigo-900" />
+
+          <div className="px-6 sm:px-8 pb-6 sm:pb-8">
+            <div className="flex flex-col md:flex-row md:items-end gap-4 -mt-10 sm:-mt-14">
+              {/* Avatar */}
+              <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl bg-white p-1 shadow-xl shrink-0 border-2 border-white">
+                {member.photoUrl ? (
+                  <img src={member.photoUrl} alt={member.name} className="w-full h-full object-cover rounded-xl" />
+                ) : (
+                  <div className={`w-full h-full rounded-xl flex items-center justify-center text-2xl font-black ${member.gender === 'Masculino' ? 'bg-blue-100 text-blue-600' : 'bg-pink-100 text-pink-600'}`}>
+                    {member.name.substring(0, 2)}
+                  </div>
+                )}
               </div>
-            </div>
-            <div className="flex-1 space-y-2 min-w-0">
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
-                <h3 className="text-xl sm:text-2xl font-bold text-gray-900 truncate">{member.name}</h3>
-                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium self-start ${member.status === 'Ativo' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
-                  {member.status}
-                </span>
+
+              {/* Info */}
+              <div className="flex-1 min-w-0 space-y-2 mt-2 md:mt-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h2 className="text-xl sm:text-2xl font-black text-zinc-900 tracking-tight">{member.name}</h2>
+                  <span className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest ${
+                    member.status === 'Ativo' ? 'bg-emerald-100 text-emerald-700' :
+                    member.status === 'Aguardando' ? 'bg-amber-100 text-amber-700' :
+                    'bg-zinc-100 text-zinc-500'}`}>
+                    {member.status}
+                  </span>
+                  {member.nickname && (
+                    <span className="px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest bg-zinc-100 text-zinc-500">
+                      "{member.nickname}"
+                    </span>
+                  )}
+                </div>
+                <div className="flex flex-wrap gap-4 text-xs text-zinc-500 font-semibold">
+                  <span className="flex items-center gap-1.5"><Phone className="w-3.5 h-3.5" />{member.phone || '—'}</span>
+                  <span className="flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5" />MFCista há {calcYears(member.mfcDate)} anos</span>
+                  <span className="flex items-center gap-1.5"><Layers className="w-3.5 h-3.5" />{teamName}</span>
+                  {member.dob && <span className="flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5" />{calcYears(member.dob)} anos</span>}
+                </div>
               </div>
-              <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2 sm:gap-4 text-xs sm:text-sm text-gray-500">
-                <div className="flex items-center gap-1.5"><Phone className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> {member.phone}</div>
-                <div className="flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> MFCista desde {member.mfcDate}</div>
-                <div className="flex items-center gap-1.5"><LayersIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> Equipe: {teamName}</div>
-              </div>
-            </div>
-            <div className="flex gap-2">
-              <button className="flex-1 sm:flex-none px-4 py-2.5 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 shadow-lg active:scale-95">
-                <Edit className="w-4 h-4" /> <span>Editar</span>
-              </button>
+
+              {/* Ação */}
+              <Button variant="primary" size="sm" iconLeft={<Edit className="w-3.5 h-3.5" />}
+                onClick={() => navigate('/mfcistas', { state: { editId: member.id } })}>
+                Editar
+              </Button>
             </div>
           </div>
-        </div>
-      </div>
+        </ContentCard>
 
-      {/* Main Sections */}
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 sm:gap-8">
-        {/* Navigation */}
-        <div className="lg:col-span-1 space-y-2">
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id as any)}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
-                activeTab === tab.id 
-                ? 'bg-blue-600 text-white shadow-md shadow-blue-200' 
-                : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-100'
-              }`}
-            >
-              <tab.icon className={`w-5 h-5 ${activeTab === tab.id ? 'text-white' : 'text-gray-400'}`} />
-              {tab.label}
-            </button>
-          ))}
-        </div>
+        {/* Layout: nav lateral + conteúdo */}
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
 
-        {/* Content */}
-        <div className="lg:col-span-3">
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-8">
-            {activeTab === 'pessoal' && (
-              <div className="space-y-8">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-6">
-                  <InfoItem label="Nome Completo" value={member.name} />
-                  <InfoItem label="Nome Crachá" value={member.nickname} />
-                  <InfoItem label="Data Nascimento" value={member.dob} />
-                  <InfoItem label="Sexo" value={member.gender} />
-                  <InfoItem label="RG" value={member.rg} />
-                  <InfoItem label="CPF" value={member.cpf} />
-                  <InfoItem label="Tipo SanguÃ­neo" value={member.bloodType} />
-                  <InfoItem label="Estado Civil" value={member.maritalStatus} />
-                  {member.spouseName && <InfoItem label="Cônjuge" value={member.spouseName} />}
-                  {member.marriageDate && <InfoItem label="Data Casamento" value={member.marriageDate} />}
-                </div>
-              </div>
-            )}
+          {/* Nav */}
+          <div className="lg:col-span-1 flex flex-row lg:flex-col gap-2 overflow-x-auto lg:overflow-visible no-scrollbar">
+            {TABS.map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex items-center gap-2.5 px-4 py-3 rounded-xl text-xs font-black uppercase tracking-widest whitespace-nowrap transition-all w-full ${
+                  activeTab === tab.id
+                    ? 'bg-amber-500 text-white shadow-md shadow-amber-200'
+                    : 'bg-white text-zinc-500 hover:bg-zinc-50 border border-zinc-200'
+                }`}
+              >
+                <tab.icon className="w-4 h-4 shrink-0" />
+                {tab.label}
+              </button>
+            ))}
+          </div>
 
-            {activeTab === 'endereco' && (
-              <div className="space-y-8">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-6">
-                  <InfoItem label="Logradouro" value={member.street} />
-                  <InfoItem label="NÃºmero" value={member.number} />
-                  <InfoItem label="Bairro" value={member.neighborhood} />
-                  <InfoItem label="CEP" value={member.zip} />
-                  <InfoItem label="Cidade" value={member.city} />
-                  <InfoItem label="Estado" value={member.state} />
-                  <InfoItem label="Naturalidade" value={member.naturalness} />
-                  <InfoItem label="Condir" value={member.condir} />
-                </div>
-              </div>
-            )}
+          {/* Conteúdo */}
+          <div className="lg:col-span-3">
+            <ContentCard padding="lg">
 
-            {activeTab === 'saude' && (
-              <div className="space-y-8">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-6">
-                  <InfoItem label="Pai" value={member.father} />
-                  <InfoItem label="Mãe" value={member.mother} />
-                  <InfoItem label="Fuma?" value={member.smoker ? 'Sim' : 'Não'} />
-                  <InfoItem label="Dificuldade de Locomoção" value={member.mobilityIssue} />
-                  <InfoItem label="Plano de Saúde" value={member.healthPlan} />
-                  <InfoItem label="PCD?" value={member.pcd ? 'Sim' : 'Não'} />
-                  {member.pcdDescription && <InfoItem label="Descrição Deficiência" value={member.pcdDescription} />}
-                  <InfoItem label="Religião" value={member.religion} />
-                  <InfoItem label="Profissão" value={member.profession} />
-                  <InfoItem label="Escolaridade" value={member.education} />
-                </div>
-              </div>
-            )}
-
-            {activeTab === 'historico' && (
-              <div className="space-y-8">
-                 <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 flex items-start gap-3">
-                  <ShieldAlert className="w-5 h-5 text-blue-600 mt-0.5" />
-                  <div>
-                    <h4 className="text-sm font-bold text-blue-900">Cargos Atuais no Movimento</h4>
-                    <p className="text-sm text-blue-700">Responsabilidades exercidas neste período.</p>
+              {activeTab === 'pessoal' && (
+                <div className="space-y-6">
+                  <h3 className="text-sm font-black text-zinc-800 uppercase tracking-widest">Dados Pessoais</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-10 gap-y-5">
+                    <InfoItem label="Nome Completo" value={member.name} />
+                    <InfoItem label="Nome Crachá" value={member.nickname} />
+                    <InfoItem label="Data de Nascimento" value={member.dob} />
+                    <InfoItem label="Sexo" value={member.gender} />
+                    <InfoItem label="RG" value={member.rg} />
+                    <InfoItem label="CPF" value={member.cpf} />
+                    <InfoItem label="Tipo Sanguíneo" value={member.bloodType} />
+                    <InfoItem label="Estado Civil" value={member.maritalStatus} />
+                    {member.spouseName && <InfoItem label="Cônjuge" value={member.spouseName} />}
+                    {member.spouseCpf && <InfoItem label="CPF do Cônjuge" value={member.spouseCpf} />}
+                    {member.marriageDate && <InfoItem label="Data do Casamento" value={member.marriageDate} />}
+                    <InfoItem label="MFCista Desde" value={member.mfcDate} />
+                    <InfoItem label="Equipe Base" value={teamName} />
+                    <InfoItem label="Profissão" value={member.profession} />
+                    <InfoItem label="Religião" value={member.religion} />
+                    <InfoItem label="Escolaridade" value={member.education} />
+                    <InfoItem label="Condir" value={member.condir} />
                   </div>
                 </div>
-                <div className="flex flex-wrap gap-2">
-                  {member.movementRoles.map(role => (
-                    <span key={role} className="px-3 py-1 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm font-medium">
-                      {role}
-                    </span>
-                  ))}
-                  {member.movementRoles.length === 0 && <p className="text-gray-500 italic">Nenhum cargo atribuído. Membro comum.</p>}
-                </div>
-              </div>
-            )}
+              )}
 
-            {activeTab === 'acesso' && (
-              <div className="space-y-8">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-6">
-                  <InfoItem label="Usuário Sistema" value="alziraloretti" />
-                  <InfoItem label="E-mail Acesso" value="farahalziraloretti@gmail.com" />
-                  <InfoItem label="Data Cadastro no Sistema" value={member.createdAt} />
-                  <InfoItem label="Última Atualização" value={member.updatedAt} />
+              {activeTab === 'endereco' && (
+                <div className="space-y-6">
+                  <h3 className="text-sm font-black text-zinc-800 uppercase tracking-widest">Endereço</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-10 gap-y-5">
+                    <InfoItem label="CEP" value={member.zip} />
+                    <InfoItem label="Logradouro" value={member.street} />
+                    <InfoItem label="Número" value={member.number} />
+                    <InfoItem label="Complemento" value={member.complement} />
+                    <InfoItem label="Bairro" value={member.neighborhood} />
+                    <InfoItem label="Cidade" value={member.city} />
+                    <InfoItem label="Estado" value={member.state} />
+                    <InfoItem label="Naturalidade" value={member.naturalness} />
+                  </div>
                 </div>
-                <div className="flex gap-4">
-                  <button className="px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50">Redefinir Senha</button>
-                  <button className="px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50">Alterar E-mail</button>
+              )}
+
+              {activeTab === 'saude' && (
+                <div className="space-y-6">
+                  <h3 className="text-sm font-black text-zinc-800 uppercase tracking-widest">Família e Saúde</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-10 gap-y-5">
+                    <InfoItem label="Pai" value={member.father} />
+                    <InfoItem label="Mãe" value={member.mother} />
+                    <Divider className="sm:col-span-2" />
+                    <InfoItem label="Fumante" value={member.smoker ? 'Sim' : 'Não'} />
+                    <InfoItem label="PCD" value={member.pcd ? 'Sim' : 'Não'} />
+                    {member.pcdDescription && <InfoItem label="Descrição PCD" value={member.pcdDescription} />}
+                    <InfoItem label="Dificuldade de Locomoção" value={member.mobilityIssue} />
+                    <InfoItem label="Plano de Saúde" value={member.healthPlan} />
+                    <InfoItem label="Restrição Alimentar" value={member.diet} />
+                    <InfoItem label="Medicação em Uso" value={member.medication} />
+                    <InfoItem label="Alergia" value={member.allergy} />
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
+
+              {activeTab === 'historico' && (
+                <div className="space-y-6">
+                  <h3 className="text-sm font-black text-zinc-800 uppercase tracking-widest">Cargos no Movimento</h3>
+                  <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-3">
+                    <ShieldAlert className="w-5 h-5 text-amber-600 mt-0.5 shrink-0" />
+                    <div>
+                      <p className="text-sm font-black text-amber-900">Responsabilidades atuais</p>
+                      <p className="text-xs text-amber-700 mt-0.5">Cargos exercidos neste período no Movimento.</p>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {(member.movementRoles || []).length > 0
+                      ? member.movementRoles.map(role => (
+                          <span key={role} className="px-3 py-1.5 bg-white border border-zinc-200 text-zinc-700 rounded-lg text-xs font-bold">
+                            {role}
+                          </span>
+                        ))
+                      : <p className="text-sm text-zinc-400 italic">Nenhum cargo atribuído. Membro comum.</p>
+                    }
+                  </div>
+                </div>
+              )}
+
+              {activeTab === 'acesso' && (
+                <div className="space-y-6">
+                  <h3 className="text-sm font-black text-zinc-800 uppercase tracking-widest">Dados de Acesso</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-10 gap-y-5">
+                    <InfoItem label="Data de Cadastro" value={member.createdAt ? new Date(member.createdAt).toLocaleDateString('pt-BR') : undefined} />
+                    <InfoItem label="Última Atualização" value={member.updatedAt ? new Date(member.updatedAt).toLocaleDateString('pt-BR') : undefined} />
+                  </div>
+                  <Divider />
+                  <div className="flex flex-wrap gap-2">
+                    <Button variant="outline" size="sm">Redefinir Senha</Button>
+                    <Button variant="outline" size="sm">Alterar E-mail</Button>
+                  </div>
+                </div>
+              )}
+
+            </ContentCard>
           </div>
         </div>
+
       </div>
-    </div>
+    </PageWrapper>
   );
 };
 
-const InfoItem = ({ label, value }: { label: string; value: string }) => (
-  <div className="space-y-1">
-    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">{label}</p>
-    <p className="text-sm font-medium text-gray-900">{value || '---'}</p>
-  </div>
-);
-
-const LayersIcon = ({ className }: { className: string }) => (
-  <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-  </svg>
-);
-
 export default MemberProfile;
-
-
-
