@@ -70,7 +70,7 @@ interface FilterLineDateRangeProps {
 }
 
 export const FilterLine: React.FC<FilterLineProps> = ({ children, className = '', ...props }) => (
-  <div className={cx('w-full rounded-2xl border border-zinc-200 bg-white p-3 shadow-sm md:p-4', className)} {...props}>
+  <div className={cx('w-full rounded-none border-x-0 border-zinc-200 bg-white p-4 shadow-sm sm:rounded-2xl sm:border-x md:p-5', className)} {...props}>
     <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
       {children}
     </div>
@@ -113,7 +113,7 @@ export const FilterLineGroup: React.FC<FilterLineGroupProps> = ({
   children, className = '', compact = false, ...props
 }) => (
   <div
-    className={cx('inline-flex items-center rounded-xl bg-zinc-100', compact ? 'gap-1 p-1' : 'gap-1.5 p-1', className)}
+    className={cx('inline-flex items-center rounded-xl bg-zinc-100', compact ? 'gap-1 p-1' : 'gap-1 sm:gap-1.5 p-1', className)}
     {...props}
   >
     {children}
@@ -124,7 +124,7 @@ export function FilterLineSegmented<T extends string | number = string>({
   value, onChange, options, className = '', size = 'md',
 }: FilterLineSegmentedProps<T>) {
   return (
-    <FilterLineGroup compact={size === 'sm'} className={className}>
+    <FilterLineGroup compact={size === 'sm'} className={cx("flex w-full sm:inline-flex sm:w-auto", className)}>
       {options.map((option) => {
         const active = String(option.value) === String(value);
         return (
@@ -133,8 +133,8 @@ export function FilterLineSegmented<T extends string | number = string>({
             type="button"
             onClick={() => onChange(option.value)}
             className={cx(
-              'inline-flex items-center gap-2 rounded-lg font-bold transition-all',
-              size === 'sm' ? 'px-3 py-1.5 text-[10px]' : 'px-4 py-2 text-xs',
+              'inline-flex flex-1 sm:flex-initial items-center justify-center gap-2 rounded-lg font-bold transition-all',
+              size === 'sm' ? 'px-2 py-1.5 text-[10px]' : 'px-2.5 sm:px-4 py-2 text-xs',
               active ? 'bg-white text-amber-600 shadow-sm' : 'text-zinc-500 hover:text-zinc-800'
             )}
           >

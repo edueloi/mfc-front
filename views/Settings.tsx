@@ -33,21 +33,42 @@ import {
   ToggleLeft,
   ToggleRight,
   Percent,
-  BadgeDollarSign
+  BadgeDollarSign,
+  Bell,
+  Palette,
+  Info
 } from 'lucide-react';
 import { api } from '../api';
 import { UserRoleType, ModuleAction, City } from '../types';
+import { 
+  PageWrapper, 
+  SectionTitle, 
+  StatGrid, 
+  ContentCard, 
+  Button, 
+  IconButton, 
+  Input, 
+  Select, 
+  Modal, 
+  ModalFooter,
+  Switch,
+  Badge,
+  ConfirmModal
+} from '../components/ui';
+import { StatCard } from '../components/ui/StatCard';
+import { cn } from '../src/lib/utils';
+import toast from 'react-hot-toast';
 
 const BRAZILIAN_STATES = [
-  { uf: 'AC', name: 'Acre' }, { uf: 'AL', name: 'Alagoas' }, { uf: 'AP', name: 'Amapá' },
-  { uf: 'AM', name: 'Amazonas' }, { uf: 'BA', name: 'Bahia' }, { uf: 'CE', name: 'Ceará' },
-  { uf: 'DF', name: 'Distrito Federal' }, { uf: 'ES', name: 'Espírito Santo' }, { uf: 'GO', name: 'Goiás' },
-  { uf: 'MA', name: 'Maranhão' }, { uf: 'MT', name: 'Mato Grosso' }, { uf: 'MS', name: 'Mato Grosso do Sul' },
-  { uf: 'MG', name: 'Minas Gerais' }, { uf: 'PA', name: 'Pará' }, { uf: 'PB', name: 'Paraíba' },
-  { uf: 'PR', name: 'Paraná' }, { uf: 'PE', name: 'Pernambuco' }, { uf: 'PI', name: 'Piauí' },
-  { uf: 'RJ', name: 'Rio de Janeiro' }, { uf: 'RN', name: 'Rio Grande do Norte' }, { uf: 'RS', name: 'Rio Grande do Sul' },
-  { uf: 'RO', name: 'Rondônia' }, { uf: 'RR', name: 'Roraima' }, { uf: 'SC', name: 'Santa Catarina' },
-  { uf: 'SP', name: 'São Paulo' }, { uf: 'SE', name: 'Sergipe' }, { uf: 'TO', name: 'Tocantins' }
+  { value: 'AC', label: 'Acre' }, { value: 'AL', label: 'Alagoas' }, { value: 'AP', label: 'Amapá' },
+  { value: 'AM', label: 'Amazonas' }, { value: 'BA', label: 'Bahia' }, { value: 'CE', label: 'Ceará' },
+  { value: 'DF', label: 'Distrito Federal' }, { value: 'ES', label: 'Espírito Santo' }, { value: 'GO', label: 'Goiás' },
+  { value: 'MA', label: 'Maranhão' }, { value: 'MT', label: 'Mato Grosso' }, { value: 'MS', label: 'Mato Grosso do Sul' },
+  { value: 'MG', label: 'Minas Gerais' }, { value: 'PA', label: 'Pará' }, { value: 'PB', label: 'Paraíba' },
+  { value: 'PR', label: 'Paraná' }, { value: 'PE', label: 'Pernambuco' }, { value: 'PI', label: 'Piauí' },
+  { value: 'RJ', label: 'Rio de Janeiro' }, { value: 'RN', label: 'Rio Grande do Norte' }, { value: 'RS', label: 'Rio Grande do Sul' },
+  { value: 'RO', label: 'Rondônia' }, { value: 'RR', label: 'Roraima' }, { value: 'SC', label: 'Santa Catarina' },
+  { value: 'SP', label: 'São Paulo' }, { value: 'SE', label: 'Sergipe' }, { value: 'TO', label: 'Tocantins' }
 ];
 
 const MODULES = [
@@ -79,16 +100,11 @@ interface RoleDefinition {
   };
 }
 
-interface SettingsViewProps {
-  initialTab?: 'permissoes' | 'cidades' | 'financeiro';
-}
-
 interface FinancialConfig {
   monthlyPaymentAmount: number;
   eventTicketDefaultValue: number;
   currency: string;
 }
-
 
 interface AdvancedFinanceConfig {
   dueDay: number;
@@ -98,8 +114,8 @@ interface AdvancedFinanceConfig {
   autoGenerateMonthlyCharges: boolean;
 }
 
-const SettingsView: React.FC<SettingsViewProps> = ({ initialTab = 'permissoes' }) => {
-  const [activeTab, setActiveTab] = useState(initialTab);
+const SettingsView: React.FC = () => {
+  const [activeTab, setActiveTab] = useState<'geral' | 'permissoes' | 'cidades' | 'financeiro'>('geral');
   const [citySearch, setCitySearch] = useState('');
   const [cities, setCities] = useState<City[]>([]);
   
@@ -110,13 +126,23 @@ const SettingsView: React.FC<SettingsViewProps> = ({ initialTab = 'permissoes' }
   const [newRoleName, setNewRoleName] = useState('');
   const [permissionSearch, setPermissionSearch] = useState('');
 
+  // State para Configurações Gerais
+  const [generalSettings, setGeneralSettings] = useState({
+    institutionName: 'Movimento Familiar Cristão',
+    logoUrl: '',
+    primaryColor: '#2563eb',
+    supportEmail: 'contato@mfc.org.br',
+    notifications: true,
+    maintenanceMode: false
+  });
+
   // State para Configurações Financeiras
   const [financialConfig, setFinancialConfig] = useState<FinancialConfig>({
     monthlyPaymentAmount: 50.00,
     eventTicketDefaultValue: 100.00,
     currency: 'BRL'
   });
-  const [savedNotification, setSavedNotification] = useState(false);
+  
   const [citySortBy, setCitySortBy] = useState<'name' | 'status'>('name');
   const [advancedFinance, setAdvancedFinance] = useState<AdvancedFinanceConfig>({
     dueDay: 10,
@@ -125,24 +151,27 @@ const SettingsView: React.FC<SettingsViewProps> = ({ initialTab = 'permissoes' }
     allowPartialPayment: true,
     autoGenerateMonthlyCharges: true
   });
+
   useEffect(() => {
     api.getCities().then(setCities).catch(() => setCities([]));
     api.getRoles().then(setRoles).catch(() => setRoles([]));
     
-    // Carregar configurações financeiras do backend
     api.getFinancialConfig()
       .then(setFinancialConfig)
-      .catch((e) => {
-        console.error('Erro ao carregar configurações financeiras:', e);
-      });
+      .catch(() => {});
 
     const storedAdvanced = localStorage.getItem('mfc.settings.advancedFinance');
     if (storedAdvanced) {
       try {
         setAdvancedFinance(JSON.parse(storedAdvanced));
-      } catch (_) {
-        // ignore invalid local settings
-      }
+      } catch (_) {}
+    }
+
+    const storedGeneral = localStorage.getItem('mfc.settings.general');
+    if (storedGeneral) {
+      try {
+        setGeneralSettings(prev => ({ ...prev, ...JSON.parse(storedGeneral) }));
+      } catch (_) {}
     }
   }, []);
 
@@ -152,15 +181,10 @@ const SettingsView: React.FC<SettingsViewProps> = ({ initialTab = 'permissoes' }
     }
   }, [roles, selectedRoleId]);
 
-  // Modais Cidades
   const [showCityModal, setShowCityModal] = useState(false);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-  
-  // Estados de formulário Cidades
+  const [cityToDelete, setCityToDelete] = useState<City | null>(null);
   const [editingCityId, setEditingCityId] = useState<string | null>(null);
   const [newCity, setNewCity] = useState({ name: '', uf: 'SP', mfcSince: new Date().toISOString().split('T')[0] });
-  const [cityToDelete, setCityToDelete] = useState<City | null>(null);
-  const [deleteConfirmationText, setDeleteConfirmationText] = useState('');
 
   const filteredCities = cities
     .filter(c =>
@@ -172,8 +196,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({ initialTab = 'permissoes' }
       return a.name.localeCompare(b.name);
     });
 
-  const activeCities = cities.filter((city) => city.active !== false).length;
-  const inactiveCities = cities.filter((city) => city.active === false).length;
+  const activeCitiesCount = cities.filter((city) => city.active !== false).length;
 
   const filteredModules = MODULES.filter((module) =>
     module.name.toLowerCase().includes(permissionSearch.toLowerCase())
@@ -181,25 +204,21 @@ const SettingsView: React.FC<SettingsViewProps> = ({ initialTab = 'permissoes' }
 
   const handleSaveRole = () => {
     if (!newRoleName.trim()) return;
-    const newRole: RoleDefinition = {
-      id: '',
-      name: newRoleName,
+    api.createRole({ 
+      name: newRoleName, 
       permissions: MODULES.reduce((acc, mod) => ({
         ...acc,
         [mod.id]: ACTIONS.reduce((actAcc, act) => ({ ...actAcc, [act.id]: false }), {})
       }), {})
-    };
-
-    api.createRole({ name: newRole.name, permissions: newRole.permissions })
+    })
       .then((created: RoleDefinition) => {
         setRoles([...roles, created]);
         setSelectedRoleId(created.id);
         setShowRoleModal(false);
         setNewRoleName('');
+        toast.success('Perfil criado com sucesso!');
       })
-      .catch(() => {
-        setShowRoleModal(false);
-      });
+      .catch(() => toast.error('Erro ao criar perfil.'));
   };
 
   const togglePermission = (moduleId: string, actionId: ModuleAction) => {
@@ -226,90 +245,260 @@ const SettingsView: React.FC<SettingsViewProps> = ({ initialTab = 'permissoes' }
   const handleSaveRolePermissions = () => {
     const role = roles.find(r => r.id === selectedRoleId);
     if (!role || role.isSystem) return;
-    api.updateRole(role.id, { name: role.name, permissions: role.permissions })
-      .then((updated: RoleDefinition) => {
-        setRoles(roles.map(r => r.id === updated.id ? updated : r));
-      })
-      .catch(() => {});
+    toast.promise(
+      api.updateRole(role.id, { name: role.name, permissions: role.permissions })
+        .then((updated: RoleDefinition) => {
+          setRoles(roles.map(r => r.id === updated.id ? updated : r));
+        }),
+      {
+        loading: 'Salvando permissões...',
+        success: 'Permissões salvas! ✅',
+        error: 'Erro ao salvar permissões.'
+      }
+    );
   };
 
   const handleSaveCity = () => {
     const cityNameTrimmed = newCity.name.trim();
     if (!cityNameTrimmed) return;
 
-    const isDuplicate = cities.some(c =>
-      c.name.toLowerCase() === cityNameTrimmed.toLowerCase() &&
-      c.id !== editingCityId
+    const promise = editingCityId
+      ? api.updateCity(editingCityId, { name: cityNameTrimmed, uf: newCity.uf, mfcSince: newCity.mfcSince })
+      : api.createCity({ name: cityNameTrimmed, uf: newCity.uf, mfcSince: newCity.mfcSince });
+
+    toast.promise(
+      promise.then((res: any) => {
+        if (editingCityId) {
+          setCities(cities.map(c => c.id === editingCityId ? res : c));
+        } else {
+          setCities([...cities, res]);
+        }
+        setShowCityModal(false);
+      }),
+      {
+        loading: editingCityId ? 'Atualizando unidade...' : 'Criando unidade...',
+        success: editingCityId ? 'Unidade atualizada! 📍' : 'Unidade criada! 🎉',
+        error: 'Erro ao salvar unidade.'
+      }
     );
+  };
 
-    if (isDuplicate) {
-      alert("Erro: Ja existe uma unidade cadastrada com este nome!");
-      return;
-    }
+  const handleToggleCity = (city: City) => {
+    api.toggleCity(city.id, !city.active)
+      .then((updated: City) => {
+        setCities(cities.map(c => c.id === city.id ? updated : c));
+        toast.success(`Unidade ${updated.active ? 'ativada' : 'inativada'}!`);
+      });
+  };
 
-    if (editingCityId) {
-      api.updateCity(editingCityId, { name: cityNameTrimmed, uf: newCity.uf, mfcSince: newCity.mfcSince })
-        .then((updated: City) => {
-          setCities(cities.map(c => c.id === editingCityId ? updated : c));
-          setShowCityModal(false);
-        })
-        .catch(() => setShowCityModal(false));
-    } else {
-      api.createCity({ name: cityNameTrimmed, uf: newCity.uf, mfcSince: newCity.mfcSince })
-        .then((created: City) => {
-          setCities([...cities, created]);
-          setShowCityModal(false);
-        })
-        .catch(() => setShowCityModal(false));
-    }
+  const handleConfirmDeleteCity = () => {
+    if (!cityToDelete) return;
+    toast.promise(
+      api.deleteCity(cityToDelete.id).then(() => {
+        setCities(cities.filter(c => c.id !== cityToDelete.id));
+        setCityToDelete(null);
+      }),
+      {
+        loading: 'Excluindo unidade...',
+        success: 'Unidade excluída! 🗑️',
+        error: 'Erro ao excluir unidade.'
+      }
+    );
+  };
+
+  const handleSaveGeneral = () => {
+    localStorage.setItem('mfc.settings.general', JSON.stringify(generalSettings));
+    toast.success('Configurações gerais salvas!');
+  };
+
+  const handleSaveFinancial = () => {
+    toast.promise(
+      api.updateFinancialConfig(financialConfig).then(() => {
+        localStorage.setItem('mfc.settings.advancedFinance', JSON.stringify(advancedFinance));
+      }),
+      {
+        loading: 'Salvando configurações financeiras...',
+        success: 'Configurações financeiras salvas! 💰',
+        error: 'Erro ao salvar configurações financeiras.'
+      }
+    );
   };
 
   const selectedRole = roles.find(r => r.id === selectedRoleId);
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-700 pb-24 lg:pb-10">
-      {/* Header Centralizado */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 px-2 lg:px-0">
-        <div>
-          <h2 className="text-3xl lg:text-4xl font-black text-gray-900 tracking-tight">Configurações</h2>
-          <p className="text-gray-500 font-medium text-sm lg:text-base">Ajustes finos da plataforma MFC Gestão.</p>
-        </div>
+    <PageWrapper>
+      <SectionTitle 
+        title="Configurações do Sistema"
+        description="Gerencie permissões, unidades e regras financeiras da plataforma."
+        icon={SettingsIcon}
+      />
 
-        <div className="flex bg-gray-100/80 p-1 rounded-2xl border border-gray-200/50 backdrop-blur-sm shadow-inner overflow-x-auto">
-          <button onClick={() => setActiveTab('permissoes')} className={`flex-1 lg:flex-none flex items-center justify-center gap-2 px-6 lg:px-8 py-3.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'permissoes' ? 'bg-white text-blue-600 shadow-xl shadow-gray-200/50 border border-gray-100' : 'text-gray-400'}`}>
-            <Shield className="w-4 h-4" /> Níveis de Acesso
+      <div className="flex bg-slate-100/50 p-1.5 rounded-2xl border border-slate-200/60 mb-8 max-w-fit">
+        {[
+          { id: 'geral', label: 'Geral', icon: Settings },
+          { id: 'permissoes', label: 'Acessos', icon: Shield },
+          { id: 'cidades', label: 'Unidades', icon: MapPin },
+          { id: 'financeiro', label: 'Financeiro', icon: DollarSign }
+        ].map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id as any)}
+            className={cn(
+              "flex items-center gap-2 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
+              activeTab === tab.id 
+                ? "bg-white text-blue-600 shadow-sm border border-slate-100" 
+                : "text-slate-400 hover:text-slate-600"
+            )}
+          >
+            <tab.icon className="w-4 h-4" />
+            {tab.label}
           </button>
-          <button onClick={() => setActiveTab('cidades')} className={`flex-1 lg:flex-none flex items-center justify-center gap-2 px-6 lg:px-8 py-3.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'cidades' ? 'bg-white text-blue-600 shadow-xl shadow-gray-200/50 border border-gray-100' : 'text-gray-400'}`}>
-            <MapPin className="w-4 h-4" /> Unidades do MFC
-          </button>
-          <button onClick={() => setActiveTab('financeiro')} className={`flex-1 lg:flex-none flex items-center justify-center gap-2 px-6 lg:px-8 py-3.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'financeiro' ? 'bg-white text-blue-600 shadow-xl shadow-gray-200/50 border border-gray-100' : 'text-gray-400'}`}>
-            <DollarSign className="w-4 h-4" /> Mensalidades e Repasses
-          </button>
-        </div>
+        ))}
       </div>
+
+      {activeTab === 'geral' && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <div className="lg:col-span-2 space-y-6">
+            <ContentCard title="Identidade da Instituição">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                <Input 
+                  label="Nome da Instituição"
+                  value={generalSettings.institutionName}
+                  onChange={e => setGeneralSettings({...generalSettings, institutionName: e.target.value})}
+                  iconLeft={<Building2 className="w-4 h-4 text-slate-400" />}
+                  wrapperClassName="sm:col-span-2"
+                />
+                <Input 
+                  label="Logo URL"
+                  value={generalSettings.logoUrl}
+                  onChange={e => setGeneralSettings({...generalSettings, logoUrl: e.target.value})}
+                  placeholder="https://..."
+                  iconLeft={<Globe className="w-4 h-4 text-slate-400" />}
+                />
+                <Input 
+                  label="E-mail de Suporte"
+                  type="email"
+                  value={generalSettings.supportEmail}
+                  onChange={e => setGeneralSettings({...generalSettings, supportEmail: e.target.value})}
+                />
+              </div>
+            </ContentCard>
+
+            <ContentCard title="Preferências do Sistema">
+              <div className="space-y-6">
+                <div className="flex items-center justify-between p-4 rounded-2xl bg-slate-50 border border-slate-100">
+                  <div className="flex items-center gap-4">
+                    <div className="w-10 h-10 bg-blue-100 text-blue-600 rounded-xl flex items-center justify-center">
+                      <Bell className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-black text-slate-900 uppercase tracking-tight">Notificações por E-mail</p>
+                      <p className="text-xs text-slate-400 font-bold italic">Enviar alertas automáticos sobre lançamentos e prazos.</p>
+                    </div>
+                  </div>
+                  <Switch 
+                    checked={generalSettings.notifications}
+                    onCheckedChange={v => setGeneralSettings({...generalSettings, notifications: v})}
+                  />
+                </div>
+
+                <div className="flex items-center justify-between p-4 rounded-2xl bg-slate-50 border border-slate-100">
+                  <div className="flex items-center gap-4">
+                    <div className="w-10 h-10 bg-amber-100 text-amber-600 rounded-xl flex items-center justify-center">
+                      <AlertTriangle className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-black text-slate-900 uppercase tracking-tight">Modo Manutenção</p>
+                      <p className="text-xs text-slate-400 font-bold italic">Bloquear acesso de usuários não-administradores.</p>
+                    </div>
+                  </div>
+                  <Switch 
+                    checked={generalSettings.maintenanceMode}
+                    onCheckedChange={v => setGeneralSettings({...generalSettings, maintenanceMode: v})}
+                  />
+                </div>
+              </div>
+            </ContentCard>
+            
+            <div className="flex justify-end">
+              <Button 
+                onClick={handleSaveGeneral}
+                iconLeft={<Save className="w-4 h-4" />}
+                className="px-10"
+              >
+                Salvar Alterações
+              </Button>
+            </div>
+          </div>
+
+          <div className="space-y-6">
+            <ContentCard title="Resumo do Ambiente">
+              <div className="space-y-4">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="font-bold text-slate-400 uppercase tracking-widest text-[10px]">Versão</span>
+                  <Badge color="default">v2.4.0-stable</Badge>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="font-bold text-slate-400 uppercase tracking-widest text-[10px]">Ambiente</span>
+                  <Badge color="success">Produção</Badge>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="font-bold text-slate-400 uppercase tracking-widest text-[10px]">Database</span>
+                  <span className="font-black text-slate-700">PostgreSQL Cloud</span>
+                </div>
+              </div>
+            </ContentCard>
+
+            <ContentCard title="Personalização Visual">
+               <div className="space-y-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full border-2 border-slate-200" style={{ backgroundColor: generalSettings.primaryColor }} />
+                    <Input 
+                      value={generalSettings.primaryColor}
+                      onChange={e => setGeneralSettings({...generalSettings, primaryColor: e.target.value})}
+                      placeholder="#000000"
+                      size="sm"
+                      wrapperClassName="flex-1"
+                    />
+                  </div>
+                  <p className="text-[10px] text-slate-400 font-bold italic">Cor principal utilizada em botões e destaques.</p>
+               </div>
+            </ContentCard>
+          </div>
+        </div>
+      )}
 
       {activeTab === 'permissoes' && (
         <div className="flex flex-col lg:flex-row gap-8 animate-in slide-in-from-left-4 duration-500">
-          {/* Menu Lateral de Perfis */}
-          <div className="lg:w-80 flex flex-col gap-4 shrink-0">
-            <div className="flex items-center justify-between px-2">
-              <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest">Perfis de Acesso</h3>
-              <button 
+          <div className="lg:w-80 space-y-4 shrink-0">
+            <div className="flex items-center justify-between px-1">
+              <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Perfis de Acesso</h3>
+              <IconButton 
                 onClick={() => setShowRoleModal(true)}
-                className="p-2 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-600 hover:text-white transition-all shadow-sm"
+                variant="primary"
+                size="sm"
               >
                 <Plus className="w-4 h-4" />
-              </button>
+              </IconButton>
             </div>
             
-            <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-3 space-y-2">
+            <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-3 space-y-2">
               {roles.map(role => (
                 <button
                   key={role.id}
                   onClick={() => setSelectedRoleId(role.id)}
-                  className={`w-full flex items-center gap-4 px-5 py-4 rounded-2xl text-sm font-bold transition-all group ${selectedRoleId === role.id ? 'bg-blue-600 text-white shadow-xl shadow-blue-100' : 'text-gray-500 hover:bg-gray-50'}`}
+                  className={cn(
+                    "w-full flex items-center gap-4 px-5 py-4 rounded-2xl text-xs font-black uppercase tracking-widest transition-all group",
+                    selectedRoleId === role.id 
+                      ? "bg-blue-600 text-white shadow-xl shadow-blue-100" 
+                      : "text-slate-400 hover:bg-slate-50 hover:text-slate-600"
+                  )}
                 >
-                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${selectedRoleId === role.id ? 'bg-white/20' : 'bg-gray-100 text-gray-400 group-hover:bg-blue-50'}`}>
+                  <div className={cn(
+                    "w-8 h-8 rounded-xl flex items-center justify-center transition-colors",
+                    selectedRoleId === role.id ? "bg-white/20" : "bg-slate-100 text-slate-400 group-hover:bg-blue-50"
+                  )}>
                     <ShieldCheck className="w-4 h-4" />
                   </div>
                   <span className="flex-1 text-left truncate">{role.name}</span>
@@ -319,42 +508,41 @@ const SettingsView: React.FC<SettingsViewProps> = ({ initialTab = 'permissoes' }
             </div>
           </div>
 
-          {/* Matriz de Permissões */}
-          <div className="flex-1 bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden flex flex-col">
-            <div className="p-8 border-b border-gray-50 flex items-center justify-between bg-white sticky top-0 z-10">
+          <ContentCard padding="none" className="flex-1 overflow-hidden flex flex-col">
+            <div className="p-8 border-b border-slate-50 flex items-center justify-between bg-white sticky top-0 z-10">
               <div>
-                <h3 className="text-xl font-black text-gray-900 tracking-tight">Configurar: {selectedRole?.name}</h3>
-                <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest mt-1">
-                  {selectedRole?.isSystem ? 'PERFIL DE SISTEMA (NÃO EDITÃVEL)' : 'MARQUE O QUE ESTE PERFIL PODE ACESSAR'}
+                <h3 className="text-xl font-black text-slate-900 tracking-tight">Permissões: {selectedRole?.name}</h3>
+                <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mt-1 italic">
+                  {selectedRole?.isSystem ? 'Perfil de sistema (Protegido)' : 'Configure as ações permitidas para este perfil'}
                 </p>
               </div>
               {!selectedRole?.isSystem && (
-                <button className="text-red-500 p-3 hover:bg-red-50 rounded-2xl transition-all border border-transparent hover:border-red-100">
+                <IconButton 
+                  variant="danger" 
+                  onClick={() => {}} 
+                >
                   <Trash2 className="w-5 h-5" />
-                </button>
+                </IconButton>
               )}
             </div>
 
-            <div className="px-8 py-4 border-b border-gray-50 bg-white">
+            <div className="px-8 py-4 border-b border-slate-50 bg-white">
               <div className="flex flex-col lg:flex-row gap-3 lg:items-center lg:justify-between">
-                <div className="relative max-w-md w-full">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-300" />
-                  <input
-                    type="text"
-                    value={permissionSearch}
-                    onChange={(e) => setPermissionSearch(e.target.value)}
-                    placeholder="Buscar módulo..."
-                    className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-100 rounded-xl text-sm font-semibold"
-                  />
-                </div>
+                <Input 
+                  value={permissionSearch}
+                  onChange={(e) => setPermissionSearch(e.target.value)}
+                  placeholder="Buscar módulo..."
+                  iconLeft={<Search className="w-4 h-4 text-slate-300" />}
+                  wrapperClassName="max-w-md w-full"
+                />
                 {!selectedRole?.isSystem && (
                   <div className="flex items-center gap-2">
-                    <button onClick={() => {
+                    <Button variant="outline" size="xs" onClick={() => {
                       setRoles(roles.map((r) => r.id === selectedRoleId ? ({ ...r, permissions: Object.fromEntries(MODULES.map((m) => [m.id, { view: true, create: true, edit: true, delete: true, launch: true }])) as any }) : r));
-                    }} className="px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest bg-emerald-50 text-emerald-700">Liberar tudo</button>
-                    <button onClick={() => {
+                    }}>Liberar Tudo</Button>
+                    <Button variant="ghost" size="xs" onClick={() => {
                       setRoles(roles.map((r) => r.id === selectedRoleId ? ({ ...r, permissions: Object.fromEntries(MODULES.map((m) => [m.id, { view: false, create: false, edit: false, delete: false, launch: false }])) as any }) : r));
-                    }} className="px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest bg-gray-100 text-gray-600">Zerar</button>
+                    }}>Zerar</Button>
                   </div>
                 )}
               </div>
@@ -363,22 +551,22 @@ const SettingsView: React.FC<SettingsViewProps> = ({ initialTab = 'permissoes' }
             <div className="overflow-x-auto no-scrollbar">
               <table className="w-full text-left border-separate border-spacing-0">
                 <thead>
-                  <tr className="bg-gray-50/50">
-                    <th className="px-10 py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-100 sticky left-0 bg-gray-50/50 z-20">Módulo / Tela</th>
+                  <tr className="bg-slate-50/50">
+                    <th className="px-10 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 sticky left-0 bg-slate-50/50 z-20">Módulo / Tela</th>
                     {ACTIONS.map(action => (
-                      <th key={action.id} className="px-6 py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-100 text-center">{action.name}</th>
+                      <th key={action.id} className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 text-center">{action.name}</th>
                     ))}
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-50">
+                <tbody className="divide-y divide-slate-50">
                   {filteredModules.map(module => (
                     <tr key={module.id} className="hover:bg-blue-50/10 transition-colors group">
-                      <td className="px-10 py-5 sticky left-0 bg-white group-hover:bg-blue-50/10 z-10 border-r border-gray-50 shadow-sm">
+                      <td className="px-10 py-5 sticky left-0 bg-white group-hover:bg-blue-50/10 z-10 border-r border-slate-50">
                         <div className="flex items-center gap-4">
-                          <div className="w-10 h-10 rounded-xl bg-gray-50 text-gray-400 flex items-center justify-center transition-colors group-hover:bg-blue-100 group-hover:text-blue-600">
+                          <div className="w-10 h-10 rounded-2xl bg-slate-50 text-slate-400 flex items-center justify-center transition-colors group-hover:bg-blue-600 group-hover:text-white shadow-sm border border-slate-100">
                             <module.icon className="w-5 h-5" />
                           </div>
-                          <span className="text-sm font-black text-gray-700">{module.name}</span>
+                          <span className="text-sm font-black text-slate-700 tracking-tight">{module.name}</span>
                         </div>
                       </td>
                       {ACTIONS.map(action => {
@@ -388,9 +576,15 @@ const SettingsView: React.FC<SettingsViewProps> = ({ initialTab = 'permissoes' }
                             <button 
                               disabled={selectedRole?.isSystem}
                               onClick={() => togglePermission(module.id, action.id)}
-                              className={`p-2 rounded-xl transition-all ${isAllowed ? 'text-emerald-500 bg-emerald-50' : 'text-gray-200 bg-gray-50 hover:bg-gray-100'} ${selectedRole?.isSystem ? 'cursor-not-allowed' : 'cursor-pointer'}`}
+                              className={cn(
+                                "p-2.5 rounded-2xl transition-all border shadow-sm",
+                                isAllowed 
+                                  ? "text-emerald-600 bg-emerald-50 border-emerald-100" 
+                                  : "text-slate-200 bg-slate-50 border-slate-100 hover:bg-slate-100",
+                                selectedRole?.isSystem ? "cursor-not-allowed opacity-50" : "cursor-pointer active:scale-95"
+                              )}
                             >
-                              {isAllowed ? <CheckCircle2 className="w-6 h-6" /> : <X className="w-6 h-6" />}
+                              {isAllowed ? <CheckCircle2 className="w-5 h-5" /> : <X className="w-5 h-5" />}
                             </button>
                           </td>
                         );
@@ -402,109 +596,108 @@ const SettingsView: React.FC<SettingsViewProps> = ({ initialTab = 'permissoes' }
             </div>
             
             {!selectedRole?.isSystem && (
-              <div className="p-10 bg-gray-50/50 border-t border-gray-50 flex justify-end">
-                <button onClick={handleSaveRolePermissions} className="bg-blue-600 text-white px-12 py-4 rounded-2xl font-black text-xs uppercase tracking-[0.2em] shadow-xl shadow-blue-100 hover:bg-blue-700 transition-all active:scale-95 flex items-center gap-3">
-                  <Save className="w-5 h-5" /> Salvar Configurações
-                </button>
+              <div className="p-8 bg-slate-50/50 border-t border-slate-50 flex justify-end">
+                <Button 
+                  onClick={handleSaveRolePermissions}
+                  iconLeft={<Save className="w-4 h-4" />}
+                >
+                  Salvar Configurações
+                </Button>
               </div>
             )}
-          </div>
+          </ContentCard>
         </div>
       )}
 
-      {/* Aba de Cidades (Existente) */}
       {activeTab === 'cidades' && (
         <div className="space-y-6 animate-in slide-in-from-right-4 duration-500">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm"><p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Total de unidades</p><p className="text-3xl font-black text-gray-900 mt-2">{cities.length}</p></div>
-            <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm"><p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Unidades ativas</p><p className="text-3xl font-black text-emerald-600 mt-2">{activeCities}</p></div>
-            <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm"><p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Unidades inativas</p><p className="text-3xl font-black text-amber-600 mt-2">{inactiveCities}</p></div>
-          </div>
-          <div className="flex flex-col lg:flex-row gap-4 px-2 lg:px-0">
-            <div className="lg:w-56">
-              <select
-                value={citySortBy}
-                onChange={(e) => setCitySortBy(e.target.value as typeof citySortBy)}
-                className="w-full py-4 px-4 bg-white border border-gray-100 rounded-2xl text-xs font-black uppercase tracking-wider text-gray-500"
-              >
-                <option value="name">Ordenar por nome</option>
-                <option value="status">Ordenar por status</option>
-              </select>
-            </div>
-            <div className="relative flex-1 group">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300 w-4 h-4 group-focus-within:text-blue-500 transition-colors" />
-              <input 
-                type="text" 
-                placeholder="Pesquisar unidade..."
-                className="w-full pl-11 pr-4 py-4 bg-white border border-gray-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-blue-50 transition-all font-medium text-sm shadow-sm"
-                value={citySearch}
-                onChange={(e) => setCitySearch(e.target.value)}
-              />
-            </div>
-            <button 
+          <StatGrid cols={3}>
+            <StatCard title="Total Unidades" value={cities.length} icon={Building2} color="info" />
+            <StatCard title="Ativas" value={activeCitiesCount} icon={CheckCircle2} color="success" />
+            <StatCard title="Inativas" value={cities.length - activeCitiesCount} icon={AlertTriangle} color="warning" />
+          </StatGrid>
+
+          <div className="flex flex-col lg:flex-row gap-4 px-1 lg:px-0">
+            <Select 
+              value={citySortBy}
+              onChange={(e) => setCitySortBy(e.target.value as any)}
+              options={[
+                { value: 'name', label: 'Ordenar por Nome' },
+                { value: 'status', label: 'Ordenar por Status' }
+              ]}
+              wrapperClassName="lg:w-64"
+            />
+            <Input 
+              value={citySearch}
+              onChange={(e) => setCitySearch(e.target.value)}
+              placeholder="Pesquisar unidade..."
+              iconLeft={<Search className="w-4 h-4 text-slate-300" />}
+              wrapperClassName="flex-1"
+            />
+            <Button 
               onClick={() => {
                 setEditingCityId(null);
                 setNewCity({ name: '', uf: 'SP', mfcSince: new Date().toISOString().split('T')[0] });
                 setShowCityModal(true);
               }}
-              className="bg-blue-600 text-white px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-3 hover:bg-blue-700 transition-all shadow-xl shadow-blue-100 active:scale-95 group shrink-0"
+              iconLeft={<Plus className="w-5 h-5" />}
             >
-              <Plus className="w-5 h-5 group-hover:rotate-90 transition-transform" />
               Nova Unidade
-            </button>
+            </Button>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-4 lg:gap-6 px-2 lg:px-0">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredCities.map(city => (
               <div 
                 key={city.id} 
-                className={`bg-white p-7 rounded-3xl border border-gray-100 shadow-sm flex flex-col group hover:shadow-xl transition-all relative overflow-hidden ${!city.active ? 'bg-gray-50/50' : ''}`}
+                className={cn(
+                  "bg-white p-7 rounded-[2.5rem] border border-slate-100 shadow-sm flex flex-col group hover:shadow-2xl transition-all relative overflow-hidden",
+                  !city.active && "opacity-70 bg-slate-50/50"
+                )}
               >
-                <div className="flex items-center justify-between mb-6">
-                  <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all shadow-inner ${city.active ? 'bg-blue-50 text-blue-600' : 'bg-gray-200 text-gray-400'}`}>
-                    <MapPin className="w-7 h-7" />
+                <div className="flex items-center justify-between mb-8">
+                  <div className={cn(
+                    "w-16 h-16 rounded-3xl flex items-center justify-center transition-all shadow-inner border",
+                    city.active ? "bg-blue-50 text-blue-600 border-blue-100" : "bg-slate-100 text-slate-400 border-slate-200"
+                  )}>
+                    <MapPin className="w-8 h-8" />
                   </div>
                   <div className="flex gap-1.5">
-                    <button 
-                      onClick={() => {
-                      api.toggleCity(city.id, !city.active)
-                        .then((updated: City) => setCities(cities.map(c => c.id === city.id ? updated : c)))
-                        .catch(() => {});
-                    }}
-                      className={`p-2.5 rounded-xl transition-colors ${city.active ? 'text-emerald-500 hover:bg-emerald-50' : 'text-gray-300 hover:bg-gray-100'}`}
+                    <IconButton 
+                      variant={city.active ? "success" : "ghost"}
+                      onClick={() => handleToggleCity(city)}
                       title={city.active ? "Inativar" : "Ativar"}
                     >
                       <Power className="w-5 h-5" />
-                    </button>
-                    <button 
-                      onClick={() => { setCityToDelete(city); setShowDeleteModal(true); }}
-                      className="p-2.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-colors"
+                    </IconButton>
+                    <IconButton 
+                      variant="danger"
+                      onClick={() => setCityToDelete(city)}
                     >
                       <Trash2 className="w-5 h-5" />
-                    </button>
+                    </IconButton>
                   </div>
                 </div>
                 <div className="space-y-1">
-                  <h3 className={`text-2xl font-black tracking-tight leading-tight ${!city.active ? 'text-gray-400' : 'text-gray-900'}`}>{city.name}</h3>
-                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Unidade {city.uf}</p>
+                  <h3 className="text-2xl font-black tracking-tight text-slate-900">{city.name}</h3>
+                  <p className="text-[10px] font-black text-slate-300 uppercase tracking-[0.2em]">Unidade {city.uf}</p>
                 </div>
-                <div className="mt-8 pt-5 border-t border-gray-50 flex items-center justify-between">
-                   <div className="flex items-center gap-2">
-                      <div className={`w-2.5 h-2.5 rounded-full ${city.active ? 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]' : 'bg-gray-300'}`}></div>
-                      <span className={`text-[10px] font-black uppercase tracking-widest ${city.active ? 'text-emerald-600' : 'text-gray-400'}`}>
-                        {city.active ? 'Ativo' : 'Inativo'}
-                      </span>
-                   </div>
-                   <button 
+                <div className="mt-10 pt-6 border-t border-slate-50 flex items-center justify-between">
+                   <Badge color={city.active ? 'success' : 'default'}>
+                     {city.active ? 'Ativo' : 'Inativo'}
+                   </Badge>
+                   <Button 
+                    variant="ghost" 
+                    size="xs"
                     onClick={() => {
                       setEditingCityId(city.id);
                       setNewCity({ name: city.name, uf: city.uf, mfcSince: city.mfcSince || '' });
                       setShowCityModal(true);
                     }}
-                    className="text-[9px] font-black text-blue-600 uppercase tracking-widest flex items-center gap-2 hover:bg-blue-50 px-4 py-2 rounded-xl transition-all group/edit border border-transparent hover:border-blue-100"
+                    iconLeft={<Edit3 className="w-3.5 h-3.5" />}
                   >
-                    <Edit3 className="w-3.5 h-3.5 group-hover/edit:rotate-12 transition-transform" /> Editar
-                  </button>
+                    Editar
+                  </Button>
                 </div>
               </div>
             ))}
@@ -512,294 +705,178 @@ const SettingsView: React.FC<SettingsViewProps> = ({ initialTab = 'permissoes' }
         </div>
       )}
 
-      {/* MODAL NOVO PERFIL / PERMISSÃO */}
-      {showRoleModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-slate-900/70 backdrop-blur-sm animate-in fade-in duration-300">
-          <div className="bg-white w-full max-w-md rounded-3xl shadow-2xl flex flex-col overflow-hidden border border-gray-100 animate-in zoom-in-95 duration-500">
-            <div className="p-10 border-b border-gray-50 text-center">
-              <div className="w-16 h-16 bg-blue-600 rounded-3xl flex items-center justify-center text-white mx-auto shadow-xl mb-6">
-                <Shield className="w-8 h-8" />
-              </div>
-              <h3 className="text-2xl font-black text-gray-900 leading-tight mb-2">Novo Perfil</h3>
-              <p className="text-sm text-gray-500 font-medium px-4">Defina um nome para o novo nível de acesso. Ele começará sem nenhuma permissão.</p>
-            </div>
-            <div className="p-10 space-y-8">
-              <div>
-                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">NOME DO PERFIL</label>
-                <input 
-                  type="text" 
-                  placeholder="Ex: Secretário, Auxiliar de Tesouraria..."
-                  className="w-full px-6 py-5 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold text-gray-700 focus:ring-4 focus:ring-blue-50 focus:bg-white transition-all outline-none"
-                  value={newRoleName}
-                  onChange={(e) => setNewRoleName(e.target.value)}
-                  autoFocus
-                />
-              </div>
-              <div className="flex flex-col gap-3">
-                <button 
-                  onClick={handleSaveRole}
-                  disabled={!newRoleName.trim()}
-                  className="w-full bg-blue-600 text-white py-5 rounded-[1.5rem] font-black text-xs uppercase tracking-[0.2em] shadow-xl shadow-blue-100 hover:bg-blue-700 transition-all active:scale-95 disabled:opacity-30 disabled:grayscale"
-                >
-                  Criar e Configurar
-                </button>
-                <button onClick={() => setShowRoleModal(false)} className="text-[10px] font-black text-gray-400 uppercase tracking-widest hover:text-gray-600 transition-colors">
-                  CANCELAR
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL CIDADE (CADASTRO / EDIÃ‡ÃO) */}
-      {showCityModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-slate-900/70 backdrop-blur-sm animate-in fade-in duration-300">
-          <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl flex flex-col overflow-hidden border border-gray-100 animate-in zoom-in-95 duration-500">
-            <div className="px-8 py-8 border-b border-gray-50 flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-blue-600 rounded-2xl flex items-center justify-center text-white shadow-xl shadow-blue-100">
-                  <Building2 className="w-6 h-6" />
-                </div>
-                <div>
-                  <h3 className="text-xl font-black text-gray-900 leading-none mb-1">{editingCityId ? 'Editar Unidade' : 'Nova Unidade'}</h3>
-                  <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest">DADOS DA CIDADE NO SISTEMA</p>
-                </div>
-              </div>
-              <button onClick={() => setShowCityModal(false)} className="p-2 hover:bg-gray-50 rounded-xl transition-all text-gray-300 hover:text-red-500"><X className="w-7 h-7" /></button>
-            </div>
-            <div className="p-8 space-y-8">
-              <div>
-                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-2 ml-1">NOME DA UNIDADE</label>
-                <input 
-                  type="text" 
-                  placeholder="Ex: Tatuí"
-                  className="w-full px-6 py-5 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold text-gray-700 focus:ring-4 focus:ring-blue-50 focus:bg-white transition-all outline-none"
-                  value={newCity.name}
-                  onChange={(e) => setNewCity({...newCity, name: e.target.value})}
-                />
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-2 ml-1">ESTADO (UF)</label>
-                  <div className="relative">
-                    <select 
-                      className="w-full pl-6 pr-12 py-5 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold text-gray-700 focus:ring-4 focus:ring-blue-50 focus:bg-white transition-all outline-none appearance-none"
-                      value={newCity.uf}
-                      onChange={(e) => setNewCity({...newCity, uf: e.target.value})}
-                    >
-                      {BRAZILIAN_STATES.map(state => (
-                        <option key={state.uf} value={state.uf}>{state.name} ({state.uf})</option>
-                      ))}
-                    </select>
-                    <ChevronDown className="absolute right-5 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-300 pointer-events-none" />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-2 ml-1">MFC DESDE</label>
-                  <div className="relative">
-                    <Calendar className="absolute left-6 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-300 pointer-events-none" />
-                    <input 
-                      type="date"
-                      className="w-full pl-14 pr-6 py-5 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold text-gray-700 focus:ring-4 focus:ring-blue-50 focus:bg-white transition-all outline-none"
-                      value={newCity.mfcSince}
-                      onChange={(e) => setNewCity({...newCity, mfcSince: e.target.value})}
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div className="px-10 py-8 bg-white border-t border-gray-50 flex items-center justify-center gap-6">
-              <button onClick={() => setShowCityModal(false)} className="text-[10px] font-black text-gray-400 uppercase tracking-widest hover:text-red-500 transition-colors">CANCELAR</button>
-              <button 
-                onClick={handleSaveCity}
-                disabled={!newCity.name}
-                className="bg-blue-600 text-white px-10 py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-2xl shadow-blue-100 hover:bg-blue-700 transition-all active:scale-95 flex items-center gap-3 disabled:opacity-50"
-              >
-                <Save className="w-5 h-5" /> {editingCityId ? 'SALVAR ALTERAÇÕES' : 'ADICIONAR UNIDADE'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL EXCLUSÃO (BLINDADO) */}
-      {showDeleteModal && cityToDelete && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-slate-900/70 backdrop-blur-sm animate-in fade-in duration-300">
-          <div className="bg-white w-full max-w-md rounded-3xl shadow-2xl flex flex-col overflow-hidden border border-red-100 animate-in zoom-in-95 duration-500">
-            <div className="p-8 text-center space-y-6">
-              <div className="w-20 h-20 bg-red-50 text-red-500 rounded-3xl flex items-center justify-center mx-auto shadow-inner">
-                <AlertTriangle className="w-10 h-10" />
-              </div>
-              <div>
-                <h3 className="text-2xl font-black text-gray-900 leading-tight mb-2">Atenção Crítica!</h3>
-                <p className="text-sm text-gray-500 font-medium">Você está prestes a excluir a unidade <span className="text-red-600 font-black">{cityToDelete.name}</span>.</p>
-              </div>
-              <div className="space-y-4">
-                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-relaxed">
-                  Para confirmar, digite o nome da cidade abaixo em <span className="text-red-500">CAIXA ALTA</span>:
-                </p>
-                <input 
-                  type="text" 
-                  className="w-full px-6 py-4 bg-red-50/30 border border-red-100 rounded-2xl text-center font-black text-red-600 placeholder:text-red-200 focus:outline-none focus:ring-4 focus:ring-red-50 transition-all"
-                  placeholder={cityToDelete.name.toUpperCase()}
-                  value={deleteConfirmationText}
-                  onChange={(e) => setDeleteConfirmationText(e.target.value)}
-                />
-              </div>
-              <div className="flex flex-col gap-3 pt-4">
-                <button 
-                  onClick={() => {
-                    if (deleteConfirmationText === cityToDelete.name.toUpperCase()) {
-                      api.deleteCity(cityToDelete.id)
-                        .then(() => {
-                          setCities(cities.filter(c => c.id !== cityToDelete.id));
-                          setShowDeleteModal(false);
-                          setCityToDelete(null);
-                        })
-                        .catch(() => {});
-                    }
-                  }}
-                  disabled={deleteConfirmationText !== cityToDelete.name.toUpperCase()}
-                  className="w-full bg-red-600 text-white py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-red-100 hover:bg-red-700 transition-all active:scale-95 disabled:opacity-30 disabled:grayscale"
-                >
-                  Confirmar Exclusão Permanente
-                </button>
-                <button onClick={() => setShowDeleteModal(false)} className="text-[10px] font-black text-gray-400 uppercase tracking-widest hover:text-gray-600 transition-colors">
-                  DESISTIR E VOLTAR
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
       {activeTab === 'financeiro' && (
-        <div className="animate-in slide-in-from-right-4 duration-500">
-          <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-8 lg:p-10 space-y-8">
-            <div className="flex items-start gap-4">
-              <div className="w-14 h-14 bg-emerald-50 rounded-2xl flex items-center justify-center text-emerald-600 shrink-0">
-                <DollarSign className="w-7 h-7" />
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-in slide-in-from-right-4 duration-500">
+          <div className="lg:col-span-2 space-y-6">
+            <ContentCard title="Regras de Mensalidade">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
+                <Input 
+                  label="Valor Padrão (Equipe)"
+                  type="number"
+                  addonLeft="R$"
+                  value={financialConfig.monthlyPaymentAmount}
+                  onChange={e => setFinancialConfig({...financialConfig, monthlyPaymentAmount: parseFloat(e.target.value) || 0})}
+                  hint="Valor base para cobrança mensal das famílias nas equipes."
+                />
+                <Input 
+                  label="Cota de Repasse (Unidade)"
+                  type="number"
+                  addonLeft="R$"
+                  value={financialConfig.eventTicketDefaultValue}
+                  onChange={e => setFinancialConfig({...financialConfig, eventTicketDefaultValue: parseFloat(e.target.value) || 0})}
+                  hint="Referência para o repasse fixo da unidade ao MFC Nacional."
+                />
               </div>
-              <div className="flex-1">
-                <h3 className="text-2xl font-black text-gray-900 tracking-tight leading-none mb-2">Configuração de Mensalidades e Repasses</h3>
-                <p className="text-sm text-gray-500">Painel completo para mensalidades, repasses da unidade e regras operacionais.</p>
+            </ContentCard>
+
+            <ContentCard title="Automação e Prazos">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                <Input 
+                  label="Dia Vencimento"
+                  type="number"
+                  min={1} max={31}
+                  value={advancedFinance.dueDay}
+                  onChange={e => setAdvancedFinance({...advancedFinance, dueDay: Number(e.target.value)})}
+                  iconLeft={<Calendar className="w-4 h-4 text-slate-400" />}
+                />
+                <Input 
+                  label="Tolerância (Dias)"
+                  type="number"
+                  min={0}
+                  value={advancedFinance.graceDay}
+                  onChange={e => setAdvancedFinance({...advancedFinance, graceDay: Number(e.target.value)})}
+                  iconLeft={<Clock className="w-4 h-4 text-slate-400" />}
+                />
+                <Input 
+                  label="Percentual Repasse"
+                  type="number"
+                  addonRight="%"
+                  value={advancedFinance.repassePercentage}
+                  onChange={e => setAdvancedFinance({...advancedFinance, repassePercentage: Number(e.target.value)})}
+                />
               </div>
+            </ContentCard>
+
+            <div className="flex justify-end">
+               <Button onClick={handleSaveFinancial} iconLeft={<Save className="w-4 h-4" />}>
+                 Atualizar Regras Financeiras
+               </Button>
             </div>
+          </div>
 
-            <div className="border-t border-gray-100 pt-8 space-y-6">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div className="space-y-3">
-                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">
-                    Valor Padrão da Mensalidade
-                  </label>
-                  <div className="relative">
-                    <span className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400 font-black text-sm">R$</span>
-                    <input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      className="w-full bg-gray-50 border border-gray-200 rounded-2xl pl-12 pr-5 py-4 font-black text-gray-800 text-lg outline-none focus:ring-4 focus:ring-blue-50 focus:bg-white transition-all"
-                      value={financialConfig.monthlyPaymentAmount}
-                      onChange={(e) => setFinancialConfig({...financialConfig, monthlyPaymentAmount: parseFloat(e.target.value) || 0})}
-                    />
+          <div className="space-y-6">
+            <ContentCard title="Políticas de Cobrança">
+              <div className="space-y-6">
+                <div className="flex items-center justify-between p-3.5 bg-slate-50 rounded-2xl border border-slate-100">
+                  <div>
+                    <p className="text-[10px] font-black text-slate-900 uppercase tracking-tight">Pagamento Parcial</p>
+                    <p className="text-[9px] text-slate-400 font-bold italic">Permitir abater valores menores que a mensalidade.</p>
                   </div>
-                  <p className="text-xs text-gray-400 ml-1">Este valor será usado como padrão ao lançar mensalidades nas equipes.</p>
+                  <Switch 
+                    checked={advancedFinance.allowPartialPayment}
+                    onCheckedChange={v => setAdvancedFinance({...advancedFinance, allowPartialPayment: v})}
+                  />
                 </div>
 
-                <div className="space-y-3">
-                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">
-                    Valor Base para Repasse da Unidade
-                  </label>
-                  <div className="relative">
-                    <span className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400 font-black text-sm">R$</span>
-                    <input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      className="w-full bg-gray-50 border border-gray-200 rounded-2xl pl-12 pr-5 py-4 font-black text-gray-800 text-lg outline-none focus:ring-4 focus:ring-blue-50 focus:bg-white transition-all"
-                      value={financialConfig.eventTicketDefaultValue}
-                      onChange={(e) => setFinancialConfig({...financialConfig, eventTicketDefaultValue: parseFloat(e.target.value) || 0})}
-                    />
+                <div className="flex items-center justify-between p-3.5 bg-slate-50 rounded-2xl border border-slate-100">
+                  <div>
+                    <p className="text-[10px] font-black text-slate-900 uppercase tracking-tight">Geração Automática</p>
+                    <p className="text-[9px] text-slate-400 font-bold italic">Criar novas cobranças no início de cada mês.</p>
                   </div>
-                  <p className="text-xs text-gray-400 ml-1">Valor base utilizado como referência de repasse mensal da unidade.</p>
+                  <Switch 
+                    checked={advancedFinance.autoGenerateMonthlyCharges}
+                    onCheckedChange={v => setAdvancedFinance({...advancedFinance, autoGenerateMonthlyCharges: v})}
+                  />
                 </div>
               </div>
+            </ContentCard>
 
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div className="space-y-3">
-                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Dia de vencimento da mensalidade</label>
-                  <div className="relative">
-                    <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                    <input type="number" min={1} max={31} value={advancedFinance.dueDay} onChange={(e) => setAdvancedFinance({ ...advancedFinance, dueDay: Number(e.target.value) || 1 })} className="w-full pl-11 pr-4 py-4 bg-gray-50 border border-gray-200 rounded-2xl font-black text-gray-800" />
-                  </div>
-                </div>
-                <div className="space-y-3">
-                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Tolerância após vencimento (dias)</label>
-                  <div className="relative">
-                    <Clock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                    <input type="number" min={0} max={31} value={advancedFinance.graceDay} onChange={(e) => setAdvancedFinance({ ...advancedFinance, graceDay: Number(e.target.value) || 0 })} className="w-full pl-11 pr-4 py-4 bg-gray-50 border border-gray-200 rounded-2xl font-black text-gray-800" />
-                  </div>
-                </div>
-                <div className="space-y-3">
-                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Percentual padrão de repasse</label>
-                  <div className="relative">
-                    <Percent className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                    <input type="number" min={0} max={100} step="0.1" value={advancedFinance.repassePercentage} onChange={(e) => setAdvancedFinance({ ...advancedFinance, repassePercentage: Number(e.target.value) || 0 })} className="w-full pl-11 pr-4 py-4 bg-gray-50 border border-gray-200 rounded-2xl font-black text-gray-800" />
-                  </div>
-                </div>
-                <div className="space-y-3">
-                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Regras de cobrança</label>
-                  <div className="space-y-3 bg-gray-50 border border-gray-100 rounded-2xl p-4">
-                    <label className="flex items-center justify-between text-sm font-bold text-gray-700">
-                      Permitir pagamento parcial
-                      <input type="checkbox" checked={advancedFinance.allowPartialPayment} onChange={(e) => setAdvancedFinance({ ...advancedFinance, allowPartialPayment: e.target.checked })} />
-                    </label>
-                    <label className="flex items-center justify-between text-sm font-bold text-gray-700">
-                      Gerar mensalidades automaticamente
-                      <input type="checkbox" checked={advancedFinance.autoGenerateMonthlyCharges} onChange={(e) => setAdvancedFinance({ ...advancedFinance, autoGenerateMonthlyCharges: e.target.checked })} />
-                    </label>
-                  </div>
-                </div>
-              </div>
-
-              {savedNotification && (
-                <div className="bg-green-50 border border-green-200 rounded-2xl p-4 flex items-center gap-3 animate-in fade-in duration-300">
-                  <CheckCircle2 className="w-5 h-5 text-green-600" />
-                  <p className="text-sm font-bold text-green-700">Configurações salvas com sucesso!</p>
-                </div>
-              )}
-
-              <div className="flex justify-end pt-4">
-                <button
-                  onClick={() => {
-                    api.updateFinancialConfig(financialConfig)
-                      .then(() => {
-                        localStorage.setItem('mfc.settings.advancedFinance', JSON.stringify(advancedFinance));
-                        setSavedNotification(true);
-                        setTimeout(() => setSavedNotification(false), 3000);
-                      })
-                      .catch((e) => {
-                        console.error('Erro ao salvar configurações:', e);
-                        alert('Erro ao salvar configurações financeiras');
-                      });
-                  }}
-                  className="bg-blue-600 text-white px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-blue-100 hover:bg-blue-700 transition-all active:scale-95 flex items-center gap-3"
-                >
-                  <Save className="w-5 h-5" /> SALVAR CONFIGURAÇÕES
-                </button>
-              </div>
+            <div className="p-6 bg-blue-600 rounded-[2.5rem] text-white shadow-xl shadow-blue-100">
+               <div className="flex items-center gap-3 mb-4">
+                 <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
+                   <Info className="w-5 h-5 text-white" />
+                 </div>
+                 <h4 className="font-black uppercase tracking-widest text-[11px]">Dica Financeira</h4>
+               </div>
+               <p className="text-xs font-bold leading-relaxed opacity-90">
+                 As configurações de mensalidade são aplicadas globalmente na unidade. Alterações aqui afetarão novos lançamentos automáticos.
+               </p>
             </div>
           </div>
         </div>
       )}
-    </div>
+
+      {/* MODALS */}
+      <Modal 
+        isOpen={showRoleModal} 
+        onClose={() => setShowRoleModal(false)}
+        title="Novo Perfil de Acesso"
+        size="md"
+      >
+        <div className="space-y-6">
+          <p className="text-sm text-slate-500 font-bold italic">Defina o nome do novo nível de acesso. Você poderá configurar as permissões detalhadas logo após a criação.</p>
+          <Input 
+            label="Nome do Perfil"
+            placeholder="Ex: Supervisor, Tesoureiro Junior..."
+            value={newRoleName}
+            onChange={e => setNewRoleName(e.target.value)}
+            autoFocus
+          />
+        </div>
+        <ModalFooter>
+          <Button variant="ghost" onClick={() => setShowRoleModal(false)}>Cancelar</Button>
+          <Button onClick={handleSaveRole} disabled={!newRoleName.trim()}>Criar e Configurar</Button>
+        </ModalFooter>
+      </Modal>
+
+      <Modal
+        isOpen={showCityModal}
+        onClose={() => setShowCityModal(false)}
+        title={editingCityId ? 'Editar Unidade' : 'Nova Unidade'}
+        size="md"
+      >
+        <div className="space-y-6">
+          <Input 
+            label="Nome da Unidade"
+            placeholder="Ex: Tatuí"
+            value={newCity.name}
+            onChange={e => setNewCity({...newCity, name: e.target.value})}
+          />
+          <div className="grid grid-cols-2 gap-4">
+            <Select 
+              label="Estado (UF)"
+              value={newCity.uf}
+              onChange={e => setNewCity({...newCity, uf: e.target.value})}
+              options={BRAZILIAN_STATES}
+            />
+            <Input 
+              label="MFC Desde"
+              type="date"
+              value={newCity.mfcSince}
+              onChange={e => setNewCity({...newCity, mfcSince: e.target.value})}
+            />
+          </div>
+        </div>
+        <ModalFooter>
+          <Button variant="ghost" onClick={() => setShowCityModal(false)}>Cancelar</Button>
+          <Button onClick={handleSaveCity} iconLeft={<Save className="w-4 h-4" />}>
+            {editingCityId ? 'Salvar Alterações' : 'Adicionar Unidade'}
+          </Button>
+        </ModalFooter>
+      </Modal>
+
+      <ConfirmModal 
+        isOpen={!!cityToDelete}
+        onClose={() => setCityToDelete(null)}
+        onConfirm={handleConfirmDeleteCity}
+        title="Excluir Unidade"
+        message={`Tem certeza que deseja excluir a unidade ${cityToDelete?.name}? Todos os dados vinculados a esta unidade poderão ser afetados.`}
+        confirmLabel="Sim, Excluir Permanente"
+        variant="danger"
+      />
+
+    </PageWrapper>
   );
 };
 
 export default SettingsView;
-
-
-
-
-

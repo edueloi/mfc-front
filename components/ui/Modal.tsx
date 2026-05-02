@@ -37,6 +37,7 @@ export interface ModalProps {
   /** Mobile presentation mode */
   mobileStyle?: "bottom-sheet" | "fullscreen" | "center";
   backdropBlur?: "none" | "sm" | "md";
+  position?: "center" | "right";
 }
 
 const sizeClasses: Record<string, string> = {
@@ -47,6 +48,17 @@ const sizeClasses: Record<string, string> = {
   xl:   "sm:max-w-[768px]",
   "2xl":"sm:max-w-[900px]",
   full: "sm:max-w-[95dvw] sm:w-full",
+  auto: "sm:w-auto",
+};
+
+const rightSizeClasses: Record<string, string> = {
+  xs:   "sm:w-[320px]",
+  sm:   "sm:w-[400px]",
+  md:   "sm:w-[480px]",
+  lg:   "sm:w-[560px]",
+  xl:   "sm:w-[640px]",
+  "2xl":"sm:w-[800px]",
+  full: "sm:w-[90vw]",
   auto: "sm:w-auto",
 };
 
@@ -75,6 +87,12 @@ const desktopVariants: Variants = {
   exit:    { opacity: 0, scale: 0.97, y: -12, transition: { duration: 0.15, ease: "easeIn" } },
 };
 
+const rightVariants: Variants = {
+  hidden:  { x: "100%", opacity: 0.8 },
+  visible: { x: 0, opacity: 1, transition: { type: "spring", damping: 32, stiffness: 300, mass: 0.8 } },
+  exit:    { x: "100%", opacity: 0.8, transition: { duration: 0.2, ease: "easeIn" } },
+};
+
 export const Modal: React.FC<ModalProps> = ({
   isOpen,
   onClose,
@@ -86,6 +104,7 @@ export const Modal: React.FC<ModalProps> = ({
   hideCloseButton = false,
   mobileStyle = "bottom-sheet",
   backdropBlur = "sm",
+  position = "center",
 }) => {
   const [isMobile, setIsMobile] = useState(false);
 
@@ -111,7 +130,7 @@ export const Modal: React.FC<ModalProps> = ({
 
   const variants = isMobile
     ? isMobileFullscreen ? fullscreenVariants : bottomSheetVariants
-    : desktopVariants;
+    : position === "right" ? rightVariants : desktopVariants;
 
   return (
     <AnimatePresence>
@@ -137,7 +156,9 @@ export const Modal: React.FC<ModalProps> = ({
               "fixed inset-0 z-[101] flex pointer-events-none",
               isBottomSheet
                 ? "items-end sm:items-center sm:justify-center p-0 sm:p-6"
-                : "items-center justify-center p-4 sm:p-6"
+                : position === "right" 
+                  ? "items-stretch justify-end p-0" 
+                  : "items-center justify-center p-4 sm:p-6"
             )}
           >
             <motion.div
@@ -158,12 +179,20 @@ export const Modal: React.FC<ModalProps> = ({
                   "h-[100dvh] w-full rounded-none",
                 ],
                 // Desktop styles
-                !isBottomSheet && !isMobileFullscreen && [
+                !isBottomSheet && !isMobileFullscreen && position !== "right" && [
                   "rounded-3xl",
                   "max-h-[90dvh] sm:max-h-[88vh]",
                 ],
-                "sm:rounded-3xl sm:shadow-[0_25px_60px_rgba(0,0,0,0.15)] sm:border sm:border-zinc-200/60",
-                sizeClasses[size],
+                // Side Drawer Desktop Styles
+                !isMobile && position === "right" && [
+                  "h-full rounded-l-[2.5rem] rounded-r-none",
+                  "shadow-[-15px_0_50px_rgba(0,0,0,0.1)] border-l border-zinc-200/60",
+                  rightSizeClasses[size]
+                ],
+                !isMobile && position === "center" && [
+                  "sm:rounded-3xl sm:shadow-[0_25px_60px_rgba(0,0,0,0.15)] sm:border sm:border-zinc-200/60",
+                  sizeClasses[size]
+                ],
                 className
               )}
             >

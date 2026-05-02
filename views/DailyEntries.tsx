@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { 
   FileSpreadsheet, 
@@ -9,10 +10,15 @@ import {
   Calendar,
   Layers,
   Search,
-  AlertCircle
+  AlertCircle,
+  CalendarDays,
+  Plus
 } from 'lucide-react';
 import { api } from '../api';
 import toast from 'react-hot-toast';
+import { PageWrapper, SectionTitle, StatGrid, ContentCard, Button, Input } from '../components/ui';
+import { StatCard } from '../components/ui/StatCard';
+import { cn } from '../src/lib/utils';
 import { 
   BarChart, 
   Bar, 
@@ -88,7 +94,6 @@ const DailyEntries: React.FC = () => {
       toast.error('Erro ao importar: ' + error.message);
     } finally {
       setImporting(false);
-      // Reset input
       event.target.value = '';
     }
   };
@@ -121,66 +126,71 @@ const DailyEntries: React.FC = () => {
   };
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-black text-slate-900 tracking-tight">Lançamentos Diários 2026</h1>
-          <p className="text-slate-500 font-medium">Gestão e acompanhamento da planilha financeira 2026</p>
-        </div>
-        <div className="flex items-center gap-3">
-          <button
-            onClick={handleClear}
-            className="flex items-center gap-2 px-4 py-2 bg-white text-red-600 border border-red-100 rounded-xl font-bold hover:bg-red-50 transition-all"
-          >
-            <Trash2 className="w-5 h-5" />
-            Limpar Dados
-          </button>
-          <label className={`flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-2xl font-black shadow-lg shadow-blue-200 cursor-pointer hover:scale-105 transition-all ${importing ? 'opacity-50 pointer-events-none' : ''}`}>
-            <Upload className="w-5 h-5" />
-            {importing ? 'Importando...' : 'Importar Planilha'}
-            <input type="file" className="hidden" accept=".xlsx, .xls" onChange={handleFileUpload} disabled={importing} />
-          </label>
-        </div>
-      </div>
+    <PageWrapper>
+      <SectionTitle 
+        title="Lançamentos Diários 2026"
+        description="Gestão e acompanhamento da planilha financeira 2026"
+        icon={FileSpreadsheet}
+        action={
+          <div className="flex items-center gap-3">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleClear}
+              iconLeft={<Trash2 className="w-4 h-4" />}
+              className="text-red-600 border-red-100 hover:bg-red-50 hover:text-red-700"
+            >
+              Limpar Dados
+            </Button>
+            <Button
+              variant="primary"
+              size="sm"
+              iconLeft={<Upload className="w-4 h-4" />}
+              loading={importing}
+              onClick={() => document.getElementById('import-file')?.click()}
+            >
+              {importing ? 'Importando...' : 'Importar Planilha'}
+              <input 
+                id="import-file"
+                type="file" 
+                className="hidden" 
+                accept=".xlsx, .xls" 
+                onChange={handleFileUpload} 
+                disabled={importing} 
+              />
+            </Button>
+          </div>
+        }
+      />
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-sm flex items-center gap-5">
-          <div className="w-16 h-16 bg-green-50 rounded-2xl flex items-center justify-center text-green-600">
-            <TrendingUp className="w-8 h-8" />
-          </div>
-          <div>
-            <p className="text-sm font-black text-slate-400 uppercase tracking-widest">Total Entradas</p>
-            <h3 className="text-2xl font-black text-slate-900">{formatCurrency(stats?.summary.total_income || 0)}</h3>
-          </div>
-        </div>
-        <div className="bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-sm flex items-center gap-5">
-          <div className="w-16 h-16 bg-red-50 rounded-2xl flex items-center justify-center text-red-600">
-            <TrendingDown className="w-8 h-8" />
-          </div>
-          <div>
-            <p className="text-sm font-black text-slate-400 uppercase tracking-widest">Total Saídas</p>
-            <h3 className="text-2xl font-black text-slate-900">{formatCurrency(Math.abs(stats?.summary.total_expenses || 0))}</h3>
-          </div>
-        </div>
-        <div className="bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-sm flex items-center gap-5">
-          <div className="w-16 h-16 bg-blue-50 rounded-2xl flex items-center justify-center text-blue-600">
-            <DollarSign className="w-8 h-8" />
-          </div>
-          <div>
-            <p className="text-sm font-black text-slate-400 uppercase tracking-widest">Saldo Atual</p>
-            <h3 className={`text-2xl font-black ${stats?.summary.balance && stats.summary.balance >= 0 ? 'text-blue-600' : 'text-red-600'}`}>
-              {formatCurrency(stats?.summary.balance || 0)}
-            </h3>
-          </div>
-        </div>
-      </div>
+      <StatGrid cols={3} className="mt-8">
+        <StatCard 
+          title="Total Entradas"
+          value={formatCurrency(stats?.summary.total_income || 0)}
+          icon={TrendingUp}
+          color="success"
+          delay={0}
+        />
+        <StatCard 
+          title="Total Saídas"
+          value={formatCurrency(Math.abs(stats?.summary.total_expenses || 0))}
+          icon={TrendingDown}
+          color="danger"
+          delay={0.1}
+        />
+        <StatCard 
+          title="Saldo Atual"
+          value={formatCurrency(stats?.summary.balance || 0)}
+          icon={DollarSign}
+          color={stats?.summary.balance && stats.summary.balance >= 0 ? "info" : "danger"}
+          delay={0.2}
+        />
+      </StatGrid>
 
-      {/* Charts Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm">
-          <h3 className="text-xl font-black text-slate-900 mb-6 flex items-center gap-3">
-            <Layers className="w-6 h-6 text-blue-500" />
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-8">
+        <ContentCard>
+          <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest mb-6 flex items-center gap-3">
+            <Layers className="w-5 h-5 text-blue-500" />
             Por Centro de Custo
           </h3>
           <div className="h-[300px]">
@@ -205,21 +215,21 @@ const DailyEntries: React.FC = () => {
               </PieChart>
             </ResponsiveContainer>
           </div>
-        </div>
+        </ContentCard>
 
-        <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm">
-          <h3 className="text-xl font-black text-slate-900 mb-6 flex items-center gap-3">
-            <Calendar className="w-6 h-6 text-blue-500" />
+        <ContentCard>
+          <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest mb-6 flex items-center gap-3">
+            <CalendarDays className="w-5 h-5 text-blue-500" />
             Evolução Mensal
           </h3>
           <div className="h-[300px]">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={stats?.byMonth || []}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
-                <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fontSize: 12, fontWeight: 600 }} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fontWeight: 600 }} tickFormatter={(value) => `v${value}`} />
+                <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 700, fill: '#94a3b8' }} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 700, fill: '#94a3b8' }} />
                 <Tooltip formatter={(value: number) => formatCurrency(value)} />
-                <Bar dataKey="total" radius={[4, 4, 0, 0]}>
+                <Bar dataKey="total" radius={[4, 4, 0, 0]} barSize={32}>
                   {(stats?.byMonth || []).map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={entry.total >= 0 ? '#10b981' : '#ef4444'} />
                   ))}
@@ -227,42 +237,38 @@ const DailyEntries: React.FC = () => {
               </BarChart>
             </ResponsiveContainer>
           </div>
-        </div>
+        </ContentCard>
       </div>
 
-      {/* Table Section */}
-      <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm overflow-hidden">
-        <div className="p-8 border-b border-slate-100 flex flex-col md:flex-row justify-between items-center gap-4">
-          <h3 className="text-xl font-black text-slate-900 flex items-center gap-3">
-            <FileSpreadsheet className="w-6 h-6 text-blue-500" />
+      <ContentCard padding="none" className="mt-8 overflow-hidden">
+        <div className="p-6 border-b border-slate-100 flex flex-col md:flex-row justify-between items-center gap-4">
+          <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest flex items-center gap-3">
+            <FileSpreadsheet className="w-5 h-5 text-blue-500" />
             Histórico de Lançamentos
           </h3>
-          <div className="relative w-full md:w-96">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-            <input
-              type="text"
-              placeholder="Buscar por descrição, conta, categoria..."
-              className="w-full pl-12 pr-4 py-3 bg-slate-50 border-none rounded-2xl text-sm font-medium focus:ring-2 focus:ring-blue-100 transition-all"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
+          <Input 
+            iconLeft={<Search className="w-4 h-4 text-slate-400" />}
+            placeholder="Buscar por descrição, conta..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            wrapperClassName="w-full md:w-96"
+          />
         </div>
 
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto no-scrollbar">
           {loading ? (
             <div className="p-20 flex flex-col items-center justify-center text-slate-400">
-              <div className="w-12 h-12 border-4 border-blue-100 border-t-blue-600 rounded-full animate-spin mb-4"></div>
-              <p className="font-bold">Carregando lançamentos...</p>
+              <div className="w-10 h-10 border-4 border-slate-100 border-t-blue-600 rounded-full animate-spin mb-4"></div>
+              <p className="text-[10px] font-black uppercase tracking-widest">Carregando lançamentos...</p>
             </div>
           ) : filteredEntries.length === 0 ? (
-            <div className="p-20 flex flex-col items-center justify-center text-slate-400 italic">
-              <AlertCircle className="w-12 h-12 mb-4 opacity-20" />
-              <p className="font-bold">Nenhum lançamento encontrado.</p>
-              <p className="text-sm">Importe uma planilha para começar.</p>
+            <div className="p-20 flex flex-col items-center justify-center text-slate-400">
+              <AlertCircle className="w-12 h-12 mb-4 opacity-20 text-slate-300" />
+              <p className="text-[10px] font-black uppercase tracking-widest mb-1">Nenhum lançamento encontrado.</p>
+              <p className="text-xs font-bold text-slate-300">Importe uma planilha para começar.</p>
             </div>
           ) : (
-            <table className="w-full text-left border-collapse">
+            <table className="w-full text-left">
               <thead>
                 <tr className="bg-slate-50/50">
                   <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Data</th>
@@ -276,31 +282,34 @@ const DailyEntries: React.FC = () => {
                 {filteredEntries.map((entry) => (
                   <tr key={entry.id} className="hover:bg-slate-50/50 transition-colors group">
                     <td className="px-6 py-4">
-                      <p className="text-sm font-bold text-slate-900">
+                      <p className="text-sm font-black text-slate-900">
                         {new Date(entry.date).toLocaleDateString('pt-BR')}
                       </p>
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex flex-col">
                         <span className="text-sm font-black text-slate-900">{entry.cost_center}</span>
-                        <span className="text-[10px] font-bold text-blue-500 uppercase tracking-wider">{entry.synthetic}</span>
+                        <span className="text-[9px] font-black text-blue-500 uppercase tracking-widest">{entry.synthetic}</span>
                       </div>
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex flex-col max-w-xs">
-                        <span className="text-sm font-bold text-slate-700">{entry.analytic}</span>
-                        <span className="text-xs text-slate-400 italic truncate" title={entry.observation}>
+                        <span className="text-sm font-black text-slate-700">{entry.analytic}</span>
+                        <span className="text-[10px] text-slate-400 font-bold italic truncate" title={entry.observation}>
                           {entry.observation || '-'}
                         </span>
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <span className="px-3 py-1 bg-slate-100 text-slate-600 rounded-lg text-[10px] font-black uppercase">
+                      <span className="px-3 py-1 bg-slate-100 text-slate-600 rounded-lg text-[9px] font-black uppercase tracking-widest border border-slate-200/50">
                         {entry.account}
                       </span>
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <span className={`text-sm font-black ${entry.amount >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      <span className={cn(
+                        "text-sm font-black",
+                        entry.amount >= 0 ? "text-emerald-600" : "text-rose-600"
+                      )}>
                         {formatCurrency(entry.amount)}
                       </span>
                     </td>
@@ -310,8 +319,8 @@ const DailyEntries: React.FC = () => {
             </table>
           )}
         </div>
-      </div>
-    </div>
+      </ContentCard>
+    </PageWrapper>
   );
 };
 

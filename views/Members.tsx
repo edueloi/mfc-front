@@ -54,6 +54,7 @@ import {
   usePagination,
 } from '../components/ui';
 import type { Column } from '../components/ui';
+import { MemberForm } from '../components/MemberForm';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -332,13 +333,13 @@ const Members: React.FC = () => {
     {
       header: 'MFCista',
       render: (m) => (
-        <div className="flex items-center gap-3">
-          <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-sm shrink-0 ${m.gender === 'Masculino' ? 'bg-blue-50 text-blue-600' : 'bg-pink-50 text-pink-600'}`}>
+        <div className="flex items-center gap-2 sm:gap-3">
+          <div className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center font-black text-[10px] sm:text-sm shrink-0 ${m.gender === 'Masculino' ? 'bg-blue-50 text-blue-600' : 'bg-pink-50 text-pink-600'}`}>
             {m.name.substring(0, 2)}
           </div>
-          <div>
-            <p className="text-sm font-bold text-zinc-900">{m.name}</p>
-            <p className="text-[10px] text-zinc-400 font-semibold">{m.phone}</p>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-bold text-zinc-900 truncate">{m.name}</p>
+            <p className="text-[10px] text-zinc-400 font-semibold truncate">{m.phone}</p>
           </div>
         </div>
       ),
@@ -381,15 +382,16 @@ const Members: React.FC = () => {
     {
       header: 'Ações',
       render: (m) => (
-        <div className="flex gap-1.5 justify-end">
+        <div className="flex flex-wrap gap-1.5 sm:justify-end">
           {m.teamId && (
             <Button variant="ghost" size="xs" iconLeft={<Layers className="w-3.5 h-3.5" />}
+              className="flex-1 sm:flex-initial"
               onClick={(e) => { e.stopPropagation(); setTeamModal({ show: true, memberId: m.id, memberName: m.name, currentTeamId: m.teamId || null }); }}>
               Equipe
             </Button>
           )}
-          <Button variant="outline" size="xs" onClick={(e) => { e.stopPropagation(); handleEdit(m); }}>Editar</Button>
-          <Button variant="danger" size="xs" onClick={(e) => { e.stopPropagation(); setDeleteConfirm({ show: true, id: m.id, name: m.name }); }}>Excluir</Button>
+          <Button variant="outline" size="xs" className="flex-1 sm:flex-initial" onClick={(e) => { e.stopPropagation(); handleEdit(m); }}>Editar</Button>
+          <Button variant="danger" size="xs" className="flex-1 sm:flex-initial" onClick={(e) => { e.stopPropagation(); setDeleteConfirm({ show: true, id: m.id, name: m.name }); }}>Excluir</Button>
         </div>
       ),
     },
@@ -536,164 +538,42 @@ const Members: React.FC = () => {
 
       </div>
 
-      {/* ── Modal Novo/Editar MFCista ─────────────────────────────────────────── */}
       <Modal
         isOpen={showModal}
-        onClose={() => { setShowModal(false); setEditingId(null); setForm(blank); setActiveTab('pessoal'); }}
+        onClose={() => { setShowModal(false); setEditingId(null); setForm(blank); }}
         title={editingId ? 'Editar MFCista' : 'Novo MFCista'}
         size="xl"
       >
-        {/* Progresso */}
-        <div className="mb-5 p-3 rounded-xl bg-zinc-50 border border-zinc-200">
-          <div className="flex items-center justify-between mb-1.5">
-            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Progresso do cadastro</span>
-            <span className="text-xs font-black text-amber-600 flex items-center gap-1"><CheckCircle2 className="w-3.5 h-3.5" />{completion}%</span>
-          </div>
-          <div className="h-1.5 bg-zinc-200 rounded-full overflow-hidden">
-            <div className="h-full bg-amber-400 transition-all" style={{ width: `${completion}%` }} />
-          </div>
-        </div>
-
-        {/* Tabs */}
-        <div className="flex gap-1 overflow-x-auto no-scrollbar mb-5 border-b border-zinc-100 pb-0">
-          {(['pessoal', 'familia', 'contato', 'endereco', 'saude'] as const).map(tab => (
-            <button key={tab} onClick={() => setActiveTab(tab)}
-              className={`px-4 py-2.5 rounded-t-lg font-black text-[10px] uppercase tracking-widest whitespace-nowrap transition-all border-b-2 ${
-                activeTab === tab ? 'border-amber-500 text-amber-600 bg-amber-50' : 'border-transparent text-zinc-400 hover:text-zinc-600'
-              }`}>
-              {tab === 'pessoal' ? '👤 Pessoal' : tab === 'familia' ? '❤️ Família' : tab === 'contato' ? '📱 Contato' : tab === 'endereco' ? '📍 Endereço' : '🏥 Saúde'}
-            </button>
-          ))}
-        </div>
-
-        {/* Conteúdo das tabs */}
-        <div className="min-h-[320px]">
-
-          {activeTab === 'pessoal' && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {/* Foto */}
-              <div className="sm:col-span-2 flex items-center gap-4 p-4 rounded-xl bg-zinc-50 border border-zinc-200">
-                <div className="w-20 h-20 rounded-xl border-2 border-dashed border-zinc-300 flex items-center justify-center overflow-hidden shrink-0 bg-white">
-                  {form.photoUrl
-                    ? <img src={form.photoUrl} alt="Foto" className="w-full h-full object-cover" />
-                    : <UserRound className="w-10 h-10 text-zinc-300" />}
-                </div>
-                <Input label="URL da Foto" placeholder="https://..." value={form.photoUrl} onChange={e => set('photoUrl', e.target.value)} wrapperClassName="flex-1" />
-              </div>
-              <FormInput label="Nome Completo" value={form.name} onChange={(v: string) => set('name', v)} colSpan={2} />
-              <FormInput label="Apelido / Crachá" value={form.nickname} onChange={(v: string) => set('nickname', v)} />
-              <FormInput label="Data de Nascimento" type="date" value={form.dob} onChange={(v: string) => set('dob', v)} />
-              <FormInput label="RG" value={form.rg} onChange={(v: string) => set('rg', v)} mask={maskRG} />
-              <FormInput label="CPF" value={form.cpf} onChange={(v: string) => set('cpf', v)} mask={maskCPF} />
-              <FormSelect label="Sexo" value={form.gender} onChange={(v: string) => set('gender', v)} options={['Feminino', 'Masculino', 'Outro']} />
-              <FormSelect label="Tipo Sanguíneo" value={form.bloodType} onChange={(v: string) => set('bloodType', v)} options={['O+', 'O-', 'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-']} />
-              <FormInput label="MFCista Desde" type="date" value={form.mfcDate} onChange={(v: string) => set('mfcDate', v)} />
-              <Select label="Equipe Base" value={form.teamId || ''}
-                onChange={e => set('teamId', e.target.value || null)}
-                options={[{ value: '', label: 'Sem equipe' }, ...teams.map(t => ({ value: t.id, label: t.name }))]} />
-              {editingId && (
-                <FormSelect label="Status" value={form.status} onChange={(v: string) => set('status', v)}
-                  options={[MemberStatus.AGUARDANDO, MemberStatus.ATIVO, MemberStatus.INATIVO, MemberStatus.PENDENTE, MemberStatus.CONVIDADO]} />
-              )}
-            </div>
-          )}
-
-          {activeTab === 'familia' && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <FormSelect label="Estado Civil" value={form.maritalStatus} onChange={(v: string) => set('maritalStatus', v)} options={['Casado(a)', 'Solteiro(a)', 'Divorciado(a)', 'Viuvo(a)']} colSpan={2} />
-              <FormInput label="Cônjuge" value={form.spouseName} onChange={(v: string) => set('spouseName', v)} colSpan={2} />
-              <FormInput label="CPF do Cônjuge" value={form.spouseCpf} onChange={(v: string) => set('spouseCpf', v)} mask={maskCPF} />
-              <FormInput label="Data do Casamento" type="date" value={form.marriageDate} onChange={(v: string) => set('marriageDate', v)} />
-              <FormInput label="Nome do Pai" value={form.father} onChange={(v: string) => set('father', v)} />
-              <FormInput label="Nome da Mãe" value={form.mother} onChange={(v: string) => set('mother', v)} />
-              <FormInput label="Naturalidade" value={form.naturalness} onChange={(v: string) => set('naturalness', v)} />
-              <FormSelect label="Condir" value={form.condir} onChange={(v: string) => set('condir', v)} options={['Norte', 'Nordeste', 'Centro-Oeste', 'Sudeste', 'Sul']} />
-              <FormInput label="Profissão" value={form.profession} onChange={(v: string) => set('profession', v)} />
-              <FormInput label="Religião" value={form.religion} onChange={(v: string) => set('religion', v)} />
-              <FormInput label="Escolaridade" value={form.education} onChange={(v: string) => set('education', v)} colSpan={2} />
-            </div>
-          )}
-
-          {activeTab === 'contato' && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <FormInput label="Telefone" value={form.phone} onChange={(v: string) => set('phone', v)} mask={maskPhone} />
-              <FormInput label="Telefone de Emergência" value={form.emergencyPhone} onChange={(v: string) => set('emergencyPhone', v)} mask={maskPhone} />
-            </div>
-          )}
-
-          {activeTab === 'endereco' && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="sm:col-span-2">
-                <Input label="CEP" value={form.zip} onChange={e => handleCepChange(e.target.value)} placeholder="00000-000" hint="Digite o CEP para preencher automaticamente" />
-              </div>
-              {/* Estado */}
-              <div>
-                <Input label="Estado (UF)" value={estadoBusca || form.state} placeholder="Digite para buscar..."
-                  onChange={e => setEstadoBusca(e.target.value)}
-                  onFocus={() => setEstadoBusca('')}
-                  addonRight={<span className="text-xs font-black text-amber-600">{form.state}</span>}
-                />
-                {estadoBusca && (
-                  <div className="mt-1 bg-white border border-zinc-200 rounded-xl shadow-lg max-h-40 overflow-y-auto z-10 relative">
-                    {estados.filter(e => e.sigla.toLowerCase().includes(estadoBusca.toLowerCase()) || e.nome.toLowerCase().includes(estadoBusca.toLowerCase())).map(e => (
-                      <button key={e.id} className="w-full text-left px-3 py-2 text-sm hover:bg-amber-50 text-zinc-700 font-semibold"
-                        onClick={() => { set('state', e.sigla); setEstadoBusca(''); }}>
-                        {e.sigla} — {e.nome}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-              {/* Cidade */}
-              <div>
-                <Input label="Cidade" value={cidadeBusca || form.city} placeholder="Digite para buscar..."
-                  onChange={e => setCidadeBusca(e.target.value)}
-                  onFocus={() => setCidadeBusca('')}
-                  addonRight={<span className="text-xs font-black text-amber-600 truncate max-w-[80px]">{form.city}</span>}
-                />
-                {cidadeBusca && (
-                  <div className="mt-1 bg-white border border-zinc-200 rounded-xl shadow-lg max-h-40 overflow-y-auto z-10 relative">
-                    {cidadesPorEstado.filter(c => c.nome.toLowerCase().includes(cidadeBusca.toLowerCase())).map(c => (
-                      <button key={c.id} className="w-full text-left px-3 py-2 text-sm hover:bg-amber-50 text-zinc-700 font-semibold"
-                        onClick={() => { set('city', c.nome); setCidadeBusca(''); }}>
-                        {c.nome}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-              <FormInput label="Logradouro" value={form.street} onChange={(v: string) => set('street', v)} colSpan={2} />
-              <FormInput label="Número" value={form.number} onChange={(v: string) => set('number', v)} />
-              <FormInput label="Bairro" value={form.neighborhood} onChange={(v: string) => set('neighborhood', v)} />
-              <FormInput label="Complemento" value={form.complement} onChange={(v: string) => set('complement', v)} colSpan={2} />
-            </div>
-          )}
-
-          {activeTab === 'saude' && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <FormCheck label="Fumante" checked={form.smoker} onChange={(v: boolean) => set('smoker', v)} />
-              <FormCheck label="PCD (Pessoa com Deficiência)" checked={form.pcd} onChange={(v: boolean) => set('pcd', v)} />
-              <FormInput label="Dificuldade de Locomoção" value={form.mobilityIssue} onChange={(v: string) => set('mobilityIssue', v)} />
-              <FormInput label="Plano de Saúde" value={form.healthPlan} onChange={(v: string) => set('healthPlan', v)} />
-              <FormInput label="Restrição Alimentar" value={form.diet} onChange={(v: string) => set('diet', v)} />
-              <FormInput label="Medicação em Uso" value={form.medication} onChange={(v: string) => set('medication', v)} />
-              <FormInput label="Alergia" value={form.allergy} onChange={(v: string) => set('allergy', v)} />
-              <FormInput label="Descrição PCD" value={form.pcdDescription} onChange={(v: string) => set('pcdDescription', v)} colSpan={2} />
-            </div>
-          )}
-        </div>
-
-        <ModalFooter>
-          <div className="flex items-center gap-2">
-            {tabIdx > 0 && <Button variant="ghost" size="sm" onClick={() => setActiveTab(TABS[tabIdx - 1])}>← Anterior</Button>}
-            {tabIdx < TABS.length - 1 && <Button variant="ghost" size="sm" onClick={() => setActiveTab(TABS[tabIdx + 1])}>Próximo →</Button>}
-          </div>
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="sm" onClick={() => setShowModal(false)}>Cancelar</Button>
-            <Button variant="secondary" size="sm" disabled={!canSave} onClick={() => handleSave(true)}>Salvar e Criar Outro</Button>
-            <Button variant="primary" size="sm" disabled={!canSave} iconLeft={<Save className="w-3.5 h-3.5" />} onClick={() => handleSave(false)}>Salvar</Button>
-          </div>
-        </ModalFooter>
+        <MemberForm
+          isEditing={!!editingId}
+          teams={teams}
+          initialData={form}
+          onCancel={() => { setShowModal(false); setEditingId(null); setForm(blank); }}
+          onSave={(data) => {
+            const payload: Partial<Member> = {
+              ...data,
+              rg: unmask(data.rg),
+              cpf: unmask(data.cpf),
+              spouseCpf: unmask(data.spouseCpf),
+              phone: unmask(data.phone),
+              emergencyPhone: unmask(data.emergencyPhone),
+              zip: unmask(data.zip),
+              movementRoles: [],
+              updatedAt: new Date().toISOString(),
+            };
+            if (editingId) {
+              toast.promise(api.updateMember(editingId, payload).then(u => {
+                setMembers(p => p.map(m => m.id === editingId ? u : m));
+                setShowModal(false); setForm(blank); setEditingId(null);
+              }), { loading: 'Atualizando...', success: 'MFCista atualizado! ✅', error: (e) => e.message });
+            } else {
+              toast.promise(api.createMember({ ...payload, createdAt: new Date().toISOString() }).then(c => {
+                setMembers(p => [c, ...p]);
+                setShowModal(false); setForm(blank);
+              }), { loading: 'Criando...', success: 'MFCista criado! 🎉', error: (e) => e.message });
+            }
+          }}
+        />
       </Modal>
 
       {/* ── Confirmar Exclusão ────────────────────────────────────────────────── */}

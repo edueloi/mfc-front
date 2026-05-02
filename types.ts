@@ -91,6 +91,8 @@ export interface Payment {
   launchedBy: string;
   memberName?: string;
   familyName?: string;
+  observation?: string;
+  method?: string;
 }
 
 export interface FinancialEntity {

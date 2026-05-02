@@ -56,6 +56,8 @@ interface StatCardProps {
   description?: string;
   color?: StatCardColor;
   className?: string;
+  isCurrency?: boolean;
+  variant?: "default" | "flat";
   /** Animação com delay para entrada escalonada */
   delay?: number;
 }
@@ -68,9 +70,15 @@ export function StatCard({
   description,
   color = "default",
   className,
+  isCurrency = false,
+  variant = "default",
   delay = 0,
 }: StatCardProps) {
   const c = colorMap[color];
+
+  const formattedValue = isCurrency 
+    ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(value))
+    : value;
 
   return (
     <motion.div
@@ -78,11 +86,8 @@ export function StatCard({
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay, duration: 0.3, ease: "easeOut" }}
       className={cn(
-        "bg-white rounded-2xl border border-zinc-200 shadow-sm",
-        "hover:shadow-md transition-all duration-300 group",
-        "relative overflow-hidden",
-        // Padding responsivo: menor no mobile
-        "p-4 sm:p-5",
+        "rounded-2xl shadow-sm relative overflow-hidden transition-all duration-300 group p-4 sm:p-5",
+        variant === "default" ? "bg-white border border-zinc-200 hover:shadow-md" : "bg-zinc-50/50 border border-transparent hover:bg-zinc-50",
         className
       )}
     >
@@ -135,7 +140,7 @@ export function StatCard({
           {title}
         </p>
         <h3 className="text-xl sm:text-2xl font-black text-zinc-900 tracking-tight leading-none">
-          {value}
+          {formattedValue}
         </h3>
         {description && (
           <p className="text-[9px] sm:text-[10px] text-zinc-400 mt-1 sm:mt-1.5 font-medium flex items-center gap-1">

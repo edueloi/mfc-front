@@ -27,7 +27,8 @@ export function PageWrapper({
         // Ocupa toda a largura útil do painel
         "w-full max-w-none min-w-0",
         // Padding horizontal mais equilibrado para admin
-        "px-4 sm:px-5 lg:px-6 xl:px-8",
+        // Sem padding horizontal no mobile para "cara de app", recupera respiro no desktop
+        "px-0 sm:px-5 lg:px-6 xl:px-8",
         // Padding vertical menor para reduzir o "vazio" no topo
         "pt-3 sm:pt-4 lg:pt-5",
         // Bottom spacing
@@ -153,7 +154,8 @@ export function ContentCard({
   return (
     <div
       className={cn(
-        "rounded-2xl border border-zinc-200 bg-white shadow-sm sm:rounded-3xl",
+        "border-zinc-200 bg-white shadow-sm",
+        "rounded-none border-x-0 sm:rounded-3xl sm:border-x",
         paddingMap[padding],
         className
       )}

@@ -110,7 +110,7 @@ function MobileCard<T>({
       {/* ── Header (always visible) ── */}
       <div
         className={cn(
-          'flex items-center gap-3 px-4 py-3.5 transition-colors',
+          'flex items-center gap-2 px-3 py-3 transition-colors',
           (isExpandable || onRowClick) && 'cursor-pointer active:bg-zinc-50',
         )}
         onClick={handleHeaderClick}
@@ -186,25 +186,36 @@ export function GridTable<T>({
   const renderAutoMobileCard = (row: T) => {
     const visibleCols = columns.filter(c => !c.hideOnMobile);
     const titleCol = visibleCols.find(c => typeof c.header === 'string' && c.header.toString().trim() !== '') || visibleCols[0];
-    const detailsCols = visibleCols.filter(c => c !== titleCol && typeof c.header === 'string' && c.header.toString().trim() !== '');
+    const actionCol = visibleCols.find(c => c.header === 'Ações');
+    const detailsCols = visibleCols.filter(c => c !== titleCol && c !== actionCol && typeof c.header === 'string' && c.header.toString().trim() !== '');
 
     return (
-      <div className="flex flex-col gap-2">
-        <div className="flex items-center justify-between gap-3">
-          <div className="font-bold text-sm text-zinc-900 pr-4 break-words line-clamp-1">
+      <div className="flex flex-col gap-3">
+        <div className="flex items-center justify-between gap-3 px-1">
+          <div className="font-black text-sm text-zinc-900 pr-4 break-words">
             {titleCol?.render ? titleCol.render(row) : titleCol?.accessor ? String(row[titleCol.accessor] ?? '') : ''}
           </div>
         </div>
+        
         {detailsCols.length > 0 && (
-          <div className="grid grid-cols-2 gap-x-3 gap-y-2 pt-2 border-t border-zinc-100">
+          <div className="grid grid-cols-2 gap-x-4 gap-y-3 pt-3 border-t border-zinc-100">
             {detailsCols.map((col, idx) => (
               <div key={idx} className="flex flex-col min-w-0">
                 <span className="text-[9px] font-black uppercase tracking-widest text-zinc-400 mb-0.5 truncate">{col.header}</span>
-                <span className="text-xs font-semibold text-zinc-700 truncate">
+                <div className="text-xs font-semibold text-zinc-700">
                   {col.render ? col.render(row) : col.accessor ? String(row[col.accessor] ?? '') : ''}
-                </span>
+                </div>
               </div>
             ))}
+          </div>
+        )}
+
+        {actionCol && (
+          <div className="pt-3 mt-1 border-t border-zinc-100">
+            <span className="text-[9px] font-black uppercase tracking-widest text-zinc-400 mb-2 block">Ações</span>
+            <div className="flex flex-wrap gap-2">
+              {actionCol.render ? actionCol.render(row) : null}
+            </div>
           </div>
         )}
       </div>

@@ -6,7 +6,7 @@ import { cn } from "@/src/lib/utils";
 // Altura: h-10 mobile / h-11 sm+  (usa classe ds-input do CSS global)
 // ─────────────────────────────────────────────────────────────────────────────
 
-interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
+interface InputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, "size"> {
   label?: string;
   error?: string;
   hint?: string;
@@ -15,6 +15,7 @@ interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   addonLeft?: React.ReactNode;
   addonRight?: React.ReactNode;
   wrapperClassName?: string;
+  size?: "sm" | "md" | "lg";
 }
 
 export const Input = React.forwardRef<HTMLInputElement, InputProps>(
@@ -32,6 +33,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
       id,
       maxLength,
       value,
+      size = "md",
       ...props
     },
     ref
@@ -67,7 +69,11 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
           )}
         >
           {addonLeft && (
-            <div className="flex items-center justify-center bg-zinc-100 px-3.5 border-r border-zinc-200 text-xs font-black text-zinc-500 whitespace-nowrap select-none shrink-0 group-focus-within:bg-zinc-50/50 transition-colors">
+            <div className={cn(
+              "flex items-center justify-center bg-zinc-100 px-3.5 border-r border-zinc-200 text-xs font-black text-zinc-500 whitespace-nowrap select-none shrink-0 group-focus-within:bg-zinc-50/50 transition-colors",
+              size === "sm" && "px-2 text-[10px]",
+              size === "lg" && "px-5 text-sm"
+            )}>
               {addonLeft}
             </div>
           )}
@@ -88,6 +94,8 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
                 "w-full bg-transparent px-3 py-2.5 outline-none",
                 "text-sm text-zinc-800 placeholder:text-zinc-400 font-bold tracking-tight",
                 "disabled:opacity-50 disabled:cursor-not-allowed",
+                size === "sm" && "py-1.5 text-xs",
+                size === "lg" && "py-4 text-base",
                 iconLeft && "pl-9",
                 iconRight && "pr-9",
                 className
@@ -103,7 +111,11 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
           </div>
 
           {addonRight && (
-            <div className="flex items-center justify-center bg-zinc-100 px-3.5 border-l border-zinc-200 text-xs font-black text-zinc-500 whitespace-nowrap select-none shrink-0 group-focus-within:bg-zinc-50/50 transition-colors">
+            <div className={cn(
+              "flex items-center justify-center bg-zinc-100 px-3.5 border-l border-zinc-200 text-xs font-black text-zinc-500 whitespace-nowrap select-none shrink-0 group-focus-within:bg-zinc-50/50 transition-colors",
+              size === "sm" && "px-2 text-[10px]",
+              size === "lg" && "px-5 text-sm"
+            )}>
               {addonRight}
             </div>
           )}
@@ -190,6 +202,8 @@ interface SelectProps extends Omit<React.SelectHTMLAttributes<HTMLSelectElement>
   label?: string;
   error?: string;
   hint?: string;
+  iconLeft?: React.ReactNode;
+  iconRight?: React.ReactNode;
   wrapperClassName?: string;
   options?: { value: string | number; label: string; disabled?: boolean }[];
   placeholder?: string;
@@ -198,7 +212,7 @@ interface SelectProps extends Omit<React.SelectHTMLAttributes<HTMLSelectElement>
 
 export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
   (
-    { label, error, hint, wrapperClassName, className, id, options, placeholder, size = "md", children, ...props },
+    { label, error, hint, iconLeft, iconRight, wrapperClassName, className, id, options, placeholder, size = "md", children, ...props },
     ref
   ) => {
     const inputId = id ?? `select-${Math.random().toString(36).slice(2, 7)}`;
@@ -212,11 +226,19 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
         )}
 
         <div className="relative">
+          {iconLeft && (
+            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 shrink-0 z-10">
+              {iconLeft}
+            </span>
+          )}
+
           <select
             ref={ref}
             id={inputId}
             className={cn(
               "ds-input appearance-none pr-8 cursor-pointer",
+              iconLeft && "pl-9",
+              iconRight && "pr-9",
               size === "sm" && "h-8 py-0 px-2 text-[11px] font-black uppercase tracking-widest",
               size === "lg" && "h-14 px-4 text-base",
               error && "border-red-400 focus:border-red-500 focus:ring-red-500/10 bg-red-50/30",
@@ -238,8 +260,9 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
               : children}
           </select>
 
-          {/* Chevron */}
-          <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400">
+          {/* Chevron / IconRight */}
+          <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 flex items-center gap-2">
+            {iconRight}
             <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
               <path d="M2.5 4.5L6 8L9.5 4.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
             </svg>

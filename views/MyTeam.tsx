@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -19,6 +20,27 @@ import {
   AlertCircle,
   Save,
   X,
+  ChevronRight,
+  Filter,
+  Search,
+  Calendar,
+  CreditCard,
+  UserPlus,
+  ArrowRight,
+  TrendingUp,
+  Info,
+  BadgeDollarSign,
+  Phone,
+  Home,
+  UserCheck,
+  Trash2,
+  Baby,
+  Eye,
+  ExternalLink,
+  PhoneCall,
+  LayoutGrid,
+  Zap,
+  Clock
 } from 'lucide-react';
 import { api } from '../api';
 import { Payment, Member, EventSale, Event, BaseTeam, UserRoleType } from '../types';
@@ -33,11 +55,19 @@ import {
   Select,
   Input,
   Button,
+  IconButton,
   Modal,
   ModalFooter,
   EmptyState,
   Divider,
+  Badge,
+  ConfirmModal,
+  StatGrid,
+  StatCard,
+  Combobox
 } from '../components/ui';
+import { cn } from '../src/lib/utils';
+import toast from 'react-hot-toast';
 
 interface MyTeamViewProps {
   teamId: string;
@@ -45,11 +75,10 @@ interface MyTeamViewProps {
   userRole: UserRoleType;
 }
 
-// ── Tabs ──────────────────────────────────────────────────────────────────────
 const TABS = [
   { id: 'familias',    label: 'Famílias',      icon: Heart },
   { id: 'membros',     label: 'Membros',        icon: Users },
-  { id: 'mensalidades',label: 'Mensalidades',   icon: DollarSign },
+  { id: 'mensalidades',label: 'Mensalidades',   icon: BadgeDollarSign },
   { id: 'eventos',     label: 'Metas Equipe',   icon: Ticket },
   { id: 'historico',   label: 'Extrato',        icon: History },
 ] as const;
@@ -64,7 +93,9 @@ const MyTeamView: React.FC<MyTeamViewProps> = ({ teamId, userId, userRole }) => 
   const [activeTab, setActiveTab] = useState<TabId>('familias');
   const [showPayModal, setShowPayModal] = useState(false);
   const [showFamilyModal, setShowFamilyModal] = useState(false);
-  const [expandedFamily, setExpandedFamily] = useState<string | null>(null);
+  const [showDetailModal, setShowDetailModal] = useState(false);
+  const [selectedFamily, setSelectedFamily] = useState<any>(null);
+  
   const [editingFamily, setEditingFamily] = useState<{ name: string; memberIds: string[]; relationships: { [id: string]: string } } | null>(null);
   const [defaultMonthlyAmount, setDefaultMonthlyAmount] = useState(50.00);
 
@@ -75,7 +106,7 @@ const MyTeamView: React.FC<MyTeamViewProps> = ({ teamId, userId, userRole }) => 
     memberIds: string[]; displayName: string; amountPerPerson: number; payingMembers: Member[];
   } | null>(null);
   const [paymentForm, setPaymentForm] = useState({
-    months: [] as number[], year: 2026, amountPerMonth: 50.00, observation: '',
+    months: [] as number[], year: 2026, amountPerMonth: 50.00, observation: '', method: 'pix'
   });
 
   const [membersState, setMembersState] = useState<Member[]>([]);
@@ -88,8 +119,6 @@ const MyTeamView: React.FC<MyTeamViewProps> = ({ teamId, userId, userRole }) => 
   const [memberSearch, setMemberSearch] = useState('');
   const [memberStatusFilter, setMemberStatusFilter] = useState('all');
 
-  // ── data ────────────────────────────────────────────────────────────────────
-
   const loadData = () => {
     api.getMembers().then((items: Member[]) => setMembersState(items.filter(m => m.teamId === teamId))).catch(() => setMembersState([]));
     api.getTeams().then((items: BaseTeam[]) => setTeam(items.find(t => t.id === teamId) || null)).catch(() => setTeam(null));
@@ -101,7 +130,7 @@ const MyTeamView: React.FC<MyTeamViewProps> = ({ teamId, userId, userRole }) => 
   useEffect(() => {
     loadData();
     window.addEventListener('focus', loadData);
-    const iv = setInterval(loadData, 30000);
+    const iv = setInterval(loadData, 60000);
     return () => { window.removeEventListener('focus', loadData); clearInterval(iv); };
   }, [teamId]);
 
@@ -110,10 +139,6 @@ const MyTeamView: React.FC<MyTeamViewProps> = ({ teamId, userId, userRole }) => 
       .then((config: any) => { if (config?.monthlyPaymentAmount) { const v = parseFloat(config.monthlyPaymentAmount); setDefaultMonthlyAmount(isNaN(v) ? 50 : v); } })
       .catch(() => {});
   }, []);
-
-  useEffect(() => { setPaymentForm(prev => ({ ...prev, amountPerMonth: defaultMonthlyAmount })); }, [defaultMonthlyAmount]);
-
-  // ── computed ─────────────────────────────────────────────────────────────────
 
   const financeStats = useMemo(() => {
     const currentRef = `${viewMonth}/${viewYear}`;
@@ -160,7 +185,19 @@ const MyTeamView: React.FC<MyTeamViewProps> = ({ teamId, userId, userRole }) => 
       const atrasos = monthsStatus.slice(0, viewMonth).filter(s => !s).length;
       let displayName = `Família ${familyName}`;
       if (spouse) displayName = `${titular.nickname || titular.name.split(' ')[0]} & ${spouse.nickname || spouse.name.split(' ')[0]}`;
-      groups.push({ type: isCouple ? 'couple' : 'single', members: sortedMembers, payingMembers: paying, displayName, monthsStatus, atrasos, amountPerPerson: amtPerPerson, familyName });
+      groups.push({ 
+        type: isCouple ? 'couple' : 'single', 
+        members: sortedMembers, 
+        payingMembers: paying, 
+        displayName, 
+        monthsStatus, 
+        atrasos, 
+        amountPerPerson: amtPerPerson, 
+        familyName,
+        titular,
+        spouse,
+        children: sortedMembers.filter(m => m.relationshipType?.includes('Filho'))
+      });
     });
     return groups.sort((a, b) => b.atrasos - a.atrasos);
   }, [membersState, localPayments, viewYear, viewMonth, defaultMonthlyAmount]);
@@ -173,17 +210,19 @@ const MyTeamView: React.FC<MyTeamViewProps> = ({ teamId, userId, userRole }) => 
       return g.displayName.toLowerCase().includes(q) || String(g.familyName || '').toLowerCase().includes(q) || g.members.some((m: Member) => m.name.toLowerCase().includes(q));
     }), [groupedMembers, familySearch, familyStatusFilter]);
 
-  const familyQuickStats = useMemo(() => ({
-    total: groupedMembers.length,
-    pending: groupedMembers.filter(g => g.atrasos > 0).length,
-    upToDate: groupedMembers.filter(g => g.atrasos === 0).length,
-  }), [groupedMembers]);
+  const upcomingBirthdays = useMemo(() => {
+    const today = new Date();
+    return membersState.filter(m => m.dob).map(m => {
+      const bd = new Date(m.dob!);
+      const next = new Date(today.getFullYear(), bd.getMonth(), bd.getDate());
+      if (next < today) next.setFullYear(today.getFullYear() + 1);
+      const daysUntil = Math.ceil((next.getTime() - today.getTime()) / 86400000);
+      const age = bd.getFullYear() ? (today.getFullYear() - bd.getFullYear()) : 0;
+      return { member: m, date: next, daysUntil, age, isToday: daysUntil === 0 };
+    }).filter(b => b.daysUntil >= 0 && b.daysUntil <= 30).sort((a, b) => a.daysUntil - b.daysUntil);
+  }, [membersState]);
 
-  const memberQuickStats = useMemo(() => ({
-    total: membersState.length,
-    active: membersState.filter(m => m.status === 'Ativo').length,
-    inactive: membersState.filter(m => m.status !== 'Ativo').length,
-  }), [membersState]);
+  const availableMembers = useMemo(() => membersState.filter(m => !m.familyName || m.familyName === ''), [membersState]);
 
   const filteredTeamMembers = useMemo(() =>
     membersState
@@ -196,22 +235,6 @@ const MyTeamView: React.FC<MyTeamViewProps> = ({ teamId, userId, userRole }) => 
       .sort((a, b) => a.name.localeCompare(b.name)),
     [membersState, memberSearch, memberStatusFilter]);
 
-  const upcomingBirthdays = useMemo(() => {
-    const today = new Date();
-    return membersState.filter(m => m.dob).map(m => {
-      const bd = new Date(m.dob!);
-      const next = new Date(today.getFullYear(), bd.getMonth(), bd.getDate());
-      if (next < today) next.setFullYear(today.getFullYear() + 1);
-      const daysUntil = Math.ceil((next.getTime() - today.getTime()) / 86400000);
-      const age = (() => { let y = today.getFullYear() - bd.getFullYear(); const diff = today.getMonth() - bd.getMonth(); if (diff < 0 || (diff === 0 && today.getDate() < bd.getDate())) y--; return y + 1; })();
-      return { member: m, date: next, daysUntil, age, isToday: daysUntil === 0 };
-    }).filter(b => b.daysUntil >= 0 && b.daysUntil <= 30).sort((a, b) => a.daysUntil - b.daysUntil);
-  }, [membersState]);
-
-  const availableMembers = useMemo(() => membersState.filter(m => !m.familyName || m.familyName === ''), [membersState]);
-
-  // ── actions ───────────────────────────────────────────────────────────────────
-
   const toggleMonthInForm = (mIdx: number) => {
     if (!selectedForPayment) return;
     const alreadyPaid = selectedForPayment.memberIds.some(id => localPayments.some(p => p.memberId === id && p.referenceMonth === `${mIdx}/${paymentForm.year}`));
@@ -221,27 +244,22 @@ const MyTeamView: React.FC<MyTeamViewProps> = ({ teamId, userId, userRole }) => 
 
   const handleSaveFamily = async () => {
     if (!editingFamily || !editingFamily.name || editingFamily.memberIds.length === 0) return;
-    try {
-      await Promise.all(editingFamily.memberIds.map((memberId, idx) => {
+    toast.promise(
+      Promise.all(editingFamily.memberIds.map((memberId, idx) => {
         const member = membersState.find(m => m.id === memberId);
         if (!member) return Promise.resolve();
         return api.updateMember(memberId, { ...member, familyName: editingFamily.name, relationshipType: editingFamily.relationships[memberId] || (idx === 0 ? 'Titular' : 'Outro'), paysMonthly: true });
-      }));
-      loadData();
-      setShowFamilyModal(false);
-      setEditingFamily(null);
-    } catch (e) { console.error(e); }
-  };
-
-  const handleDeleteFamily = async (_familyName: string, memberIds: string[]) => {
-    try {
-      await Promise.all(memberIds.map(id => {
-        const m = membersState.find(x => x.id === id);
-        if (!m) return Promise.resolve();
-        return api.updateMember(id, { ...m, familyName: '', relationshipType: 'Titular', paysMonthly: true });
-      }));
-      loadData();
-    } catch (e) { console.error(e); }
+      })).then(() => {
+        loadData();
+        setShowFamilyModal(false);
+        setEditingFamily(null);
+      }),
+      {
+        loading: 'Salvando família...',
+        success: 'Família atualizada com sucesso! ❤️',
+        error: 'Erro ao salvar família.'
+      }
+    );
   };
 
   const handleLaunchMultiPayment = () => {
@@ -249,628 +267,405 @@ const MyTeamView: React.FC<MyTeamViewProps> = ({ teamId, userId, userRole }) => 
     const pays: Payment[] = [];
     selectedForPayment.payingMembers.forEach(m => {
       paymentForm.months.forEach(mIdx => {
-        pays.push({ id: '', memberId: m.id, teamId, amount: selectedForPayment.amountPerPerson, date: new Date().toISOString().split('T')[0], referenceMonth: `${mIdx}/${paymentForm.year}`, status: 'Pago', launchedBy: userId });
+        pays.push({ 
+          id: '', 
+          memberId: m.id, 
+          teamId, 
+          amount: selectedForPayment.amountPerPerson, 
+          date: new Date().toISOString().split('T')[0], 
+          referenceMonth: `${mIdx}/${paymentForm.year}`, 
+          status: 'Pago', 
+          launchedBy: userId,
+          observation: paymentForm.observation,
+          method: paymentForm.method
+        });
       });
     });
-    Promise.all(pays.map(p => api.createPayment(p)))
-      .then((created: Payment[]) => { setLocalPayments(prev => [...created, ...prev]); setTimeout(loadData, 500); setShowPayModal(false); setPaymentForm({ months: [], year: 2026, amountPerMonth: 50, observation: '' }); })
-      .catch(console.error);
+    
+    toast.promise(
+      Promise.all(pays.map(p => api.createPayment(p)))
+        .then((created: Payment[]) => { 
+          setLocalPayments(prev => [...created, ...prev]); 
+          setTimeout(loadData, 500); 
+          setShowPayModal(false); 
+          setPaymentForm({ months: [], year: 2026, amountPerMonth: 50, observation: '', method: 'pix' }); 
+        }),
+      {
+        loading: 'Lançando pagamentos...',
+        success: 'Recebimento confirmado com sucesso! 💰',
+        error: 'Erro ao lançar pagamentos.'
+      }
+    );
   };
 
-  // ── guards ────────────────────────────────────────────────────────────────────
-
-  if (!teamId || teamId === 't1') {
-    return (
-      <PageWrapper>
-        <div className="flex flex-col items-center justify-center py-24 gap-4 text-center">
-          <p className="text-lg font-black text-zinc-800">Você não está vinculado a uma equipe base</p>
-          <p className="text-sm text-zinc-500">Seu cadastro foi atualizado. Faça logout e login novamente.</p>
-          <Button variant="danger" size="sm" onClick={() => { localStorage.removeItem('mfc.currentUser'); window.location.href = '/'; }}>
-            Fazer Logout
-          </Button>
-        </div>
-      </PageWrapper>
-    );
-  }
-
-  if (!team) {
-    return (
-      <PageWrapper>
-        <div className="flex flex-col items-center justify-center py-24 gap-4 text-center">
-          <p className="text-lg font-black text-zinc-800">Equipe não encontrada</p>
-          <Button variant="outline" size="sm" onClick={loadData}>Recarregar</Button>
-        </div>
-      </PageWrapper>
-    );
-  }
-
-  // ── render ────────────────────────────────────────────────────────────────────
+  const getMemberAge = (dob?: string) => {
+    if (!dob) return null;
+    const bd = new Date(dob);
+    const today = new Date();
+    let y = today.getFullYear() - bd.getFullYear();
+    const diff = today.getMonth() - bd.getMonth();
+    if (diff < 0 || (diff === 0 && today.getDate() < bd.getDate())) y--;
+    return y;
+  };
 
   return (
     <PageWrapper>
-      <div className="space-y-5">
-
-        {/* Team header + tabs */}
-        <ContentCard padding="lg">
-          <div className="flex flex-col gap-4">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-amber-500 rounded-xl flex items-center justify-center text-white shadow-lg shrink-0">
-                <Users className="w-6 h-6" />
+      {/* Team Header */}
+      <div className="mb-4 sm:mb-6">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-white p-5 sm:p-6 rounded-none sm:rounded-[2rem] border-y sm:border border-slate-100 shadow-sm relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-amber-50 rounded-full -mr-32 -mt-32 opacity-50 blur-3xl" />
+          
+          <div className="flex items-center gap-5 relative">
+            <div className="w-14 h-14 bg-blue-600 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-blue-100">
+              <Users className="w-7 h-7" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 mb-0.5">
+                <h1 className="text-xl font-black text-slate-900 tracking-tight">{team?.name}</h1>
+                <Badge color="info" size="sm">Equipe Base</Badge>
               </div>
-              <div>
-                <h2 className="text-xl font-black text-zinc-900 leading-none">{team.name}</h2>
-                <p className="text-[10px] text-zinc-400 font-black uppercase tracking-widest flex items-center gap-1.5 mt-1">
-                  <MapPin className="w-3 h-3 text-amber-500" /> {team.city} • {team.state}
+              <div className="flex items-center gap-3">
+                <p className="text-[9px] text-slate-400 font-black uppercase tracking-wider flex items-center gap-1.5">
+                  <MapPin className="w-3 h-3 text-blue-500" /> {team?.city} • {team?.state}
+                </p>
+                <div className="w-1 h-1 bg-slate-200 rounded-full" />
+                <p className="text-[9px] text-slate-400 font-black uppercase tracking-wider flex items-center gap-1.5">
+                  <Heart className="w-3 h-3 text-rose-500" /> {groupedMembers.length} Famílias
                 </p>
               </div>
             </div>
+          </div>
 
-            {/* Tab nav */}
-            <div className="flex gap-1 overflow-x-auto bg-zinc-50 p-1.5 rounded-xl border border-zinc-100">
+          <div className="flex items-center gap-4 relative">
+             <div className="hidden xl:block w-64">
+                <Combobox 
+                  placeholder="Busca rápida..."
+                  options={groupedMembers.map(g => ({
+                    value: g.familyName,
+                    label: g.displayName,
+                    subtitle: `Família ${g.familyName}`,
+                    badge: g.atrasos > 0 ? `${g.atrasos}m` : 'OK',
+                    badgeColor: g.atrasos > 0 ? 'bg-rose-50 text-rose-600 border-rose-100' : 'bg-emerald-50 text-emerald-600 border-emerald-100'
+                  }))}
+                  onChange={(val) => {
+                    const family = groupedMembers.find(g => g.familyName === val);
+                    if (family) { setSelectedFamily(family); setShowDetailModal(true); }
+                  }}
+                />
+             </div>
+            <div className="flex bg-slate-100/50 p-1 rounded-xl border border-slate-200/60">
               {TABS.map(tab => (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all shrink-0 ${
-                    activeTab === tab.id
-                      ? 'bg-white text-amber-600 shadow-md border border-zinc-100'
-                      : 'text-zinc-400 hover:text-zinc-600'
-                  }`}
+                  className={cn(
+                    "flex items-center gap-2 px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all whitespace-nowrap",
+                    activeTab === tab.id 
+                      ? "bg-white text-blue-600 shadow-sm border border-slate-100" 
+                      : "text-slate-400 hover:text-slate-600"
+                  )}
                 >
-                  <tab.icon className="w-4 h-4" />
-                  <span className="hidden sm:inline">{tab.label}</span>
+                  <tab.icon className="w-3.5 h-3.5" />
+                  <span className="hidden lg:inline">{tab.label}</span>
                 </button>
               ))}
             </div>
           </div>
-        </ContentCard>
+        </div>
+      </div>
 
-        {/* ── ABA FAMÍLIAS ──────────────────────────────────────────────────── */}
+      <div className="animate-in fade-in slide-in-from-bottom-2 duration-500">
+        
+        {/* ── TAB FAMÍLIAS ──────────────────────────────────────────────────── */}
         {activeTab === 'familias' && (
-          <div className="space-y-5">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-black text-zinc-800 uppercase tracking-widest">Famílias da Equipe</h3>
-              {groupedMembers.length > 0 && (
-                <Button variant="primary" size="sm" iconLeft={<Plus className="w-4 h-4" />}
-                  onClick={() => { setEditingFamily({ name: '', memberIds: [], relationships: {} }); setShowFamilyModal(true); }}>
-                  Nova Família
-                </Button>
-              )}
-            </div>
-
-            {/* Filter */}
-            {groupedMembers.length > 0 && (
-              <ContentCard padding="md">
-                <FilterLine>
-                  <FilterLineSection>
-                    <FilterLineSearch value={familySearch} onChange={setFamilySearch} placeholder="Buscar família ou membro..." />
-                  </FilterLineSection>
-                  <FilterLineSection>
-                    <FilterLineItem>
-                      <FilterLineSegmented
-                        value={familyStatusFilter}
-                        onChange={setFamilyStatusFilter}
-                        options={[
-                          { value: 'all', label: 'Todas' },
-                          { value: 'pendente', label: 'Pendentes' },
-                          { value: 'em_dia', label: 'Em dia' },
-                        ]}
-                      />
-                    </FilterLineItem>
-                    {(familySearch || familyStatusFilter !== 'all') && (
-                      <FilterLineItem>
-                        <Button variant="ghost" size="sm" iconLeft={<RotateCcw className="w-3.5 h-3.5" />}
-                          onClick={() => { setFamilySearch(''); setFamilyStatusFilter('all'); }}>
-                          Limpar
-                        </Button>
-                      </FilterLineItem>
-                    )}
-                  </FilterLineSection>
-                </FilterLine>
-
-                <div className="grid grid-cols-3 gap-2 mt-3">
-                  <div className="bg-zinc-50 border border-zinc-100 rounded-xl p-3 text-center">
-                    <p className="text-[9px] font-black text-zinc-400 uppercase">Total</p>
-                    <p className="text-lg font-black text-zinc-900">{familyQuickStats.total}</p>
-                  </div>
-                  <div className="bg-red-50 border border-red-100 rounded-xl p-3 text-center">
-                    <p className="text-[9px] font-black text-red-400 uppercase">Pendentes</p>
-                    <p className="text-lg font-black text-red-600">{familyQuickStats.pending}</p>
-                  </div>
-                  <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-3 text-center">
-                    <p className="text-[9px] font-black text-emerald-500 uppercase">Em dia</p>
-                    <p className="text-lg font-black text-emerald-600">{familyQuickStats.upToDate}</p>
-                  </div>
-                </div>
-              </ContentCard>
-            )}
-
-            {/* Birthdays */}
-            {upcomingBirthdays.length > 0 && (
-              <ContentCard padding="lg" className="border-pink-200 bg-gradient-to-br from-pink-50 to-violet-50">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-10 h-10 bg-gradient-to-br from-pink-500 to-violet-500 rounded-xl flex items-center justify-center">
-                    <Cake className="w-5 h-5 text-white" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-black text-zinc-900">Próximos Aniversariantes</p>
-                    <p className="text-[10px] text-zinc-500 font-bold">Nos próximos 30 dias</p>
-                  </div>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-                  {upcomingBirthdays.map(b => (
-                    <div key={b.member.id} onClick={() => navigate(`/mfcistas/${b.member.id}`)}
-                      className={`bg-white rounded-xl p-3 border-2 cursor-pointer hover:shadow-md transition-all ${b.isToday ? 'border-pink-400' : 'border-pink-100'}`}>
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-pink-500 to-violet-500 text-white flex items-center justify-center font-black text-base shrink-0">
-                          {b.member.name[0]}
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-xs font-black text-zinc-900 truncate">{b.member.name}</p>
-                          <p className="text-[10px] font-bold">
-                            {b.isToday ? <span className="text-pink-600">Hoje! {b.age} anos</span>
-                              : b.daysUntil === 1 ? <span className="text-violet-600">Amanhã — {b.age} anos</span>
-                              : <span className="text-zinc-500">{b.date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })} — {b.age} anos</span>}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </ContentCard>
-            )}
-
-            {/* Empty state */}
-            {groupedMembers.length === 0 && (
-              <EmptyState
-                icon={Heart}
-                title="Nenhuma Família Criada"
-                description={availableMembers.length > 0
-                  ? `Você tem ${availableMembers.length} membro(s) disponíveis para criar famílias.`
-                  : 'Cadastre novos membros para criar famílias.'}
-                action={availableMembers.length > 0 ? (
-                  <Button variant="primary" size="sm" iconLeft={<Plus className="w-4 h-4" />}
-                    onClick={() => { setEditingFamily({ name: '', memberIds: [], relationships: {} }); setShowFamilyModal(true); }}>
-                    Criar Primeira Família
-                  </Button>
-                ) : (
-                  <Button variant="outline" size="sm" iconLeft={<Users className="w-4 h-4" />} onClick={() => navigate('/mfcistas')}>
-                    Cadastrar Membros
-                  </Button>
-                )}
-              />
-            )}
-
-            {groupedMembers.length > 0 && filteredGroupedMembers.length === 0 && (
-              <ContentCard padding="lg" className="text-center">
-                <p className="text-sm font-black text-zinc-500">Nenhuma família encontrada para os filtros atuais.</p>
-              </ContentCard>
-            )}
-
-            {/* Family cards */}
-            {filteredGroupedMembers.length > 0 && (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                {filteredGroupedMembers.map((group, idx) => {
-                  const progressPercent = Math.round((group.monthsStatus.filter((s: boolean) => s).length / viewMonth) * 100);
-                  const isLate = group.atrasos > 0;
-                  const isExpanded = expandedFamily === group.familyName || expandedFamily === `group_${idx}`;
-                  const familyKey = group.familyName || `group_${idx}`;
-
-                  return (
-                    <ContentCard key={idx} padding="lg" className={`${isLate ? 'border-red-200' : 'border-emerald-200'}`}>
-                      {/* Header clicável */}
-                      <div onClick={() => setExpandedFamily(isExpanded ? null : familyKey)} className="cursor-pointer">
-                        <div className="flex items-start justify-between mb-4 gap-2">
-                          <div className="flex items-center gap-3 flex-1 min-w-0">
-                            <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${isLate ? 'bg-red-50 text-red-500' : 'bg-emerald-50 text-emerald-600'}`}>
-                              {group.type === 'couple' ? <Heart className="w-6 h-6" /> : <Users className="w-6 h-6" />}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <h3 className="text-base font-black text-zinc-900 leading-none mb-1 truncate">{group.displayName}</h3>
-                              <div className="flex items-center gap-2 flex-wrap">
-                                {group.familyName && !group.familyName.startsWith('sem_familia_') && (
-                                  <span className="text-[10px] font-black text-violet-600 bg-violet-50 px-2 py-0.5 rounded-full">
-                                    Família {group.familyName}
-                                  </span>
-                                )}
-                                <span className="text-[9px] font-bold text-zinc-400 uppercase">
-                                  {group.members.length} {group.members.length === 1 ? 'membro' : 'membros'}
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                          <div className="text-right shrink-0">
-                            <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest mb-1">Progresso {viewYear}</p>
-                            <p className={`text-2xl font-black ${progressPercent === 100 ? 'text-emerald-600' : progressPercent >= 75 ? 'text-blue-600' : progressPercent >= 50 ? 'text-amber-600' : 'text-red-600'}`}>
-                              {progressPercent}%
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Membros resumidos */}
-                      {!isExpanded && (
-                        <div className="bg-zinc-50 rounded-xl p-3 mb-4 space-y-2">
-                          <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest">Membros</p>
-                          {group.members.map((m: Member) => (
-                            <div key={m.id} className="flex items-center justify-between bg-white rounded-lg p-2.5">
-                              <div className="flex items-center gap-2">
-                                <div className="w-8 h-8 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center font-black text-xs shrink-0">
-                                  {m.name[0]}
-                                </div>
-                                <div>
-                                  <p className="text-xs font-bold text-zinc-900">{m.nickname || m.name.split(' ')[0]}</p>
-                                  <p className="text-[9px] font-bold text-zinc-400 uppercase">{m.relationshipType || 'Titular'}</p>
-                                </div>
-                              </div>
-                              <span className={`text-[9px] font-black px-2.5 py-1 rounded-full ${m.paysMonthly === false ? 'bg-zinc-100 text-zinc-500' : 'bg-blue-100 text-blue-700'}`}>
-                                {m.paysMonthly === false ? 'Isento' : `R$ ${group.amountPerPerson.toFixed(2)}/mês`}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-
-                      {/* Conteúdo expandido */}
-                      {isExpanded && (
-                        <div className="mt-4 pt-4 border-t border-zinc-100">
-                          <div className="flex items-center justify-between mb-3">
-                            <p className="text-xs font-black text-zinc-600 uppercase tracking-widest">Informações Detalhadas</p>
-                            <div className="flex gap-1.5">
-                              <Button variant="ghost" size="xs"
-                                onClick={e => { e.stopPropagation(); const rel: any = {}; group.members.forEach((m: Member) => { rel[m.id] = m.relationshipType || 'Outro'; }); setEditingFamily({ name: group.familyName || '', memberIds: group.members.map((m: Member) => m.id), relationships: rel }); setShowFamilyModal(true); }}>
-                                <Edit className="w-3.5 h-3.5" /> <span className="hidden xs:inline">Editar</span>
-                              </Button>
-                              <Button variant="ghost" size="xs"
-                                onClick={e => { e.stopPropagation(); handleDeleteFamily(group.familyName, group.members.map((m: Member) => m.id)); }}>
-                                <X className="w-3.5 h-3.5 text-red-400" /> <span className="hidden xs:inline text-red-400">Excluir</span>
-                              </Button>
-                            </div>
-                          </div>
-                          <div className="space-y-3 mb-4">
-                            {group.members.map((m: Member) => {
-                              const age = (() => { if (!m.dob) return null; const bd = new Date(m.dob); const t = new Date(); let y = t.getFullYear() - bd.getFullYear(); const diff = t.getMonth() - bd.getMonth(); if (diff < 0 || (diff === 0 && t.getDate() < bd.getDate())) y--; return y; })();
-                              return (
-                                <div key={m.id} onClick={e => { e.stopPropagation(); navigate(`/mfcistas/${m.id}`); }}
-                                  className="bg-zinc-50 rounded-xl p-3 border border-zinc-100 cursor-pointer hover:border-violet-200 transition-all">
-                                  <div className="flex items-start gap-3">
-                                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 text-white flex items-center justify-center font-black text-xl shrink-0">
-                                      {m.name[0]}
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                      <p className="text-sm font-black text-zinc-900 truncate">{m.name}</p>
-                                      <span className="text-[10px] font-black px-2 py-0.5 bg-violet-100 text-violet-700 rounded-md">
-                                        {m.relationshipType || 'Titular'}
-                                      </span>
-                                      <div className="grid grid-cols-2 gap-1 mt-2 text-[10px]">
-                                        {age !== null && <span className="flex items-center gap-1 text-zinc-600"><Cake className="w-3 h-3 text-pink-400" />{age} anos</span>}
-                                        {m.profession && <span className="flex items-center gap-1 text-zinc-600"><Briefcase className="w-3 h-3 text-blue-400" />{m.profession}</span>}
-                                        <span className={`col-span-2 font-bold px-2 py-1 rounded-md ${m.paysMonthly === false ? 'bg-zinc-100 text-zinc-500' : 'bg-emerald-50 text-emerald-700'}`}>
-                                          {m.paysMonthly === false ? 'Isento' : `R$ ${group.amountPerPerson.toFixed(2)}/mês`}
-                                        </span>
-                                      </div>
-                                    </div>
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Monthly progress bar */}
-                      <div className="mb-4">
-                        <div className="flex items-center justify-between mb-2">
-                          <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest">Pagamentos por Mês</p>
-                          <p className="text-[9px] font-black text-zinc-600">{group.monthsStatus.slice(0, viewMonth).filter((s: boolean) => s).length}/{viewMonth} meses</p>
-                        </div>
-                        <div className="grid grid-cols-12 gap-0.5">
-                          {group.monthsStatus.map((isPaid: boolean, mIdx: number) => {
-                            const isFuture = mIdx + 1 > viewMonth;
-                            let bg = 'bg-zinc-100';
-                            if (isPaid) bg = 'bg-emerald-400';
-                            else if (!isFuture) bg = 'bg-red-400';
-                            return <div key={mIdx} className={`h-7 rounded-md ${bg} transition-all`} title={shortMonths[mIdx]} />;
-                          })}
-                        </div>
-                      </div>
-
-                      {/* Footer stats + action */}
-                      <div className="flex items-center justify-between gap-3 pt-3 border-t border-zinc-100">
-                        <div className="flex gap-4">
-                          <div>
-                            <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest">Valor Mensal</p>
-                            <p className="text-base font-black text-amber-600">R$ {(group.amountPerPerson * group.payingMembers.length).toFixed(2)}</p>
-                          </div>
-                          {isLate && (
-                            <div>
-                              <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest">Pendências</p>
-                              <p className="text-base font-black text-red-600">{group.atrasos} {group.atrasos === 1 ? 'mês' : 'meses'}</p>
-                            </div>
-                          )}
-                        </div>
-                        <Button variant="primary" size="sm" iconLeft={<Plus className="w-3.5 h-3.5" />}
-                          onClick={e => {
-                            e.stopPropagation();
-                            setPaymentForm({ ...paymentForm, year: viewYear, months: [viewMonth], amountPerMonth: group.amountPerPerson, observation: '' });
-                            setSelectedForPayment({ memberIds: group.members.map((m: Member) => m.id), displayName: group.displayName, amountPerPerson: group.amountPerPerson, payingMembers: group.payingMembers });
-                            setShowPayModal(true);
-                          }}>
-                          Lançar
-                        </Button>
-                      </div>
-                    </ContentCard>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* ── ABA MEMBROS ─────────────────────────────────────────────────────── */}
-        {activeTab === 'membros' && (
           <div className="space-y-4">
-            <ContentCard padding="md">
-              <FilterLine>
-                <FilterLineSection>
-                  <FilterLineSearch value={memberSearch} onChange={setMemberSearch} placeholder="Buscar membro por nome ou apelido..." />
-                </FilterLineSection>
-                <FilterLineSection>
-                  <FilterLineItem>
-                    <FilterLineSegmented
-                      value={memberStatusFilter}
-                      onChange={setMemberStatusFilter}
-                      options={[
-                        { value: 'all', label: 'Todos' },
-                        { value: 'Ativo', label: 'Ativos' },
-                        { value: 'Inativo', label: 'Inativos' },
-                      ]}
-                    />
+            <FilterLine>
+               <FilterLineSection grow>
+                  <FilterLineItem grow>
+                     <FilterLineSearch 
+                        value={familySearch}
+                        onChange={setFamilySearch}
+                        placeholder="Pesquisar famílias ou membros..."
+                     />
                   </FilterLineItem>
-                  {(memberSearch || memberStatusFilter !== 'all') && (
-                    <FilterLineItem>
-                      <Button variant="ghost" size="sm" iconLeft={<RotateCcw className="w-3.5 h-3.5" />}
-                        onClick={() => { setMemberSearch(''); setMemberStatusFilter('all'); }}>
-                        Limpar
-                      </Button>
-                    </FilterLineItem>
-                  )}
-                </FilterLineSection>
-              </FilterLine>
+                  <FilterLineItem minWidth={280}>
+                     <FilterLineSegmented 
+                        value={familyStatusFilter}
+                        onChange={(val) => setFamilyStatusFilter(val as string)}
+                        options={[
+                           { value: 'all', label: 'Todas', icon: <LayoutGrid className="w-3.5 h-3.5" /> },
+                           { value: 'pendente', label: 'Pendentes', icon: <Clock className="w-3.5 h-3.5" /> },
+                           { value: 'em_dia', label: 'Em Dia', icon: <CheckCircle2 className="w-3.5 h-3.5" /> }
+                        ]}
+                     />
+                  </FilterLineItem>
+               </FilterLineSection>
+               <FilterLineSection align="right" grow>
+                  <Button 
+                    fullWidth
+                    size="sm"
+                    onClick={() => { setEditingFamily({ name: '', memberIds: [], relationships: {} }); setShowFamilyModal(true); }}
+                    iconLeft={<Plus className="w-4 h-4" />}
+                  >
+                    Nova Família
+                  </Button>
+               </FilterLineSection>
+            </FilterLine>
 
-              <div className="grid grid-cols-3 gap-2 mt-3">
-                <div className="bg-zinc-50 border border-zinc-100 rounded-xl p-2.5 text-center">
-                  <p className="text-[9px] font-black text-zinc-400 uppercase">Total</p>
-                  <p className="text-base font-black text-zinc-900">{memberQuickStats.total}</p>
-                </div>
-                <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-2.5 text-center">
-                  <p className="text-[9px] font-black text-emerald-500 uppercase">Ativos</p>
-                  <p className="text-base font-black text-emerald-700">{memberQuickStats.active}</p>
-                </div>
-                <div className="bg-amber-50 border border-amber-100 rounded-xl p-2.5 text-center">
-                  <p className="text-[9px] font-black text-amber-500 uppercase">Inativos</p>
-                  <p className="text-base font-black text-amber-700">{memberQuickStats.inactive}</p>
-                </div>
-              </div>
-              <p className="mt-3 text-[11px] font-bold text-zinc-400">Exibindo {filteredTeamMembers.length} de {membersState.length} membros.</p>
-            </ContentCard>
-
-            {filteredTeamMembers.length === 0 ? (
-              <EmptyState icon={Users} title="Nenhum membro encontrado" description="Tente ajustar os filtros." />
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {filteredTeamMembers.map(m => (
-                  <ContentCard key={m.id} padding="lg" className="cursor-pointer group hover:shadow-lg transition-all" onClick={() => navigate(`/mfcistas/${m.id}`)}>
-                    <div className="flex items-center gap-3 mb-4">
-                      <div className="w-12 h-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center font-black text-xl group-hover:bg-amber-500 group-hover:text-white transition-all shrink-0">
-                        {m.name[0]}
-                      </div>
-                      <div className="min-w-0">
-                        <p className="font-black text-zinc-900 text-sm truncate">{m.name}</p>
-                        <p className="text-[10px] text-zinc-400 font-black uppercase tracking-widest truncate">{m.nickname || 'Membro'}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-between pt-3 border-t border-zinc-100">
-                      <span className="text-[9px] font-black text-zinc-300 uppercase italic truncate">{m.movementRoles[0] || 'Ativo'}</span>
-                      <span className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase shrink-0 ${m.status === 'Ativo' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
-                        {m.status}
-                      </span>
-                    </div>
-                  </ContentCard>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* ── ABA MENSALIDADES ─────────────────────────────────────────────────── */}
-        {activeTab === 'mensalidades' && (
-          <div className="space-y-5">
-            {userRole === UserRoleType.ADMIN && (
-              <ContentCard padding="md" className="border-blue-200 bg-blue-50">
-                <div className="flex items-start gap-3">
-                  <SettingsIcon className="w-5 h-5 text-blue-600 mt-0.5 shrink-0" />
-                  <div>
-                    <p className="text-sm font-black text-blue-900">Valor Padrão da Mensalidade</p>
-                    <p className="text-xs text-blue-700 mt-1">
-                      O valor atual é <span className="font-black">R$ {defaultMonthlyAmount.toFixed(2)}</span> por mês.
-                      Altere nas Configurações → Financeiro.
-                    </p>
-                  </div>
-                </div>
-              </ContentCard>
-            )}
-
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-              {/* Filter card */}
-              <ContentCard padding="lg">
-                <p className="text-sm font-black text-zinc-800 mb-4">Filtro de Visão</p>
-                <div className="grid grid-cols-2 gap-3 mb-4">
-                  <Select
-                    label="Ano"
-                    value={String(viewYear)}
-                    onChange={e => setViewYear(parseInt(e.target.value))}
-                    options={[2024, 2025, 2026, 2027].map(y => ({ value: String(y), label: String(y) }))}
-                  />
-                  <Select
-                    label="Mês"
-                    value={String(viewMonth)}
-                    onChange={e => setViewMonth(parseInt(e.target.value))}
-                    options={monthNames.map((n, i) => ({ value: String(i + 1), label: n }))}
-                  />
-                </div>
-                <div className="p-3 bg-blue-50 rounded-xl border border-blue-100 flex items-center justify-between">
-                  <BarChart3 className="w-5 h-5 text-blue-600 shrink-0" />
-                  <div className="text-right">
-                    <p className="text-[9px] font-black text-blue-400 uppercase tracking-widest">Esperado no mês</p>
-                    <p className="text-lg font-black text-blue-700">
-                      R$ {(() => {
-                        const paying = membersState.filter(m => m.paysMonthly !== false);
-                        let total = 0;
-                        paying.forEach(m => {
-                          const isCouple = paying.some(o => o.id !== m.id && o.familyName === m.familyName && o.familyName && ((m.relationshipType === 'Titular' && o.relationshipType === 'Cônjuge') || (m.relationshipType === 'Cônjuge' && o.relationshipType === 'Titular')));
-                          total += isCouple ? defaultMonthlyAmount / 2 : defaultMonthlyAmount;
-                        });
-                        return total.toFixed(2);
-                      })()}
-                    </p>
-                  </div>
-                </div>
-              </ContentCard>
-
-              {/* Arrecadado */}
-              <ContentCard padding="lg" className="bg-emerald-600 border-emerald-600">
-                <p className="text-[10px] font-black text-emerald-200 uppercase tracking-widest mb-1">
-                  Arrecadado em {monthNames[viewMonth - 1]}
-                </p>
-                <p className="text-4xl font-black text-white tracking-tight">R$ {financeStats.monthlyTotal.toFixed(2)}</p>
-                <Divider className="border-emerald-500/30 my-4" />
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-black text-emerald-200 uppercase">Total {viewYear}:</span>
-                  <span className="text-lg font-black text-white">R$ {financeStats.yearlyTotal.toFixed(2)}</span>
-                </div>
-              </ContentCard>
-
-              {/* Pendências */}
-              <ContentCard padding="lg" className="border-red-100">
-                <p className="text-[10px] font-black text-red-400 uppercase tracking-widest mb-1">Pendências Acumuladas</p>
-                <p className="text-4xl font-black text-red-600 tracking-tight">R$ {financeStats.pendingAmount.toFixed(2)}</p>
-                <p className="text-[9px] font-bold text-zinc-400 italic mt-4">Valor pendente de entrada no caixa este ano.</p>
-              </ContentCard>
-            </div>
-
-            {/* Fluxo de caixa */}
-            <ContentCard padding="none">
-              <div className="p-5 border-b border-zinc-100 bg-zinc-50/30 flex items-center justify-between flex-wrap gap-2">
-                <div>
-                  <p className="text-sm font-black text-zinc-900">Fluxo de Caixa da Equipe</p>
-                  <p className="text-[10px] text-zinc-400 font-black uppercase tracking-widest mt-0.5">
-                    <span className="text-emerald-500">● Pago</span> | <span className="text-red-500">● Atraso</span> | <span className="text-zinc-300">○ Futuro</span>
-                  </p>
-                </div>
-                <span className="px-3 py-1.5 bg-white border border-zinc-100 rounded-xl text-[9px] font-black text-zinc-500 uppercase">
-                  {groupedMembers.length} Unidades Familiares
-                </span>
-              </div>
-
-              <div className="divide-y divide-zinc-50">
-                {groupedMembers.map((group, idx) => (
-                  <div key={idx} className="p-5 flex flex-col xl:flex-row xl:items-center justify-between gap-4 hover:bg-zinc-50/50 transition-all">
-                    <div className="flex items-center gap-4 min-w-0">
-                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${group.atrasos === 0 ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-500'}`}>
-                        {group.type === 'couple' ? <Heart className="w-6 h-6" /> : <Users className="w-6 h-6" />}
-                      </div>
-                      <div className="space-y-1 min-w-0 flex-1">
-                        <p className="text-sm font-black text-zinc-900 truncate">{group.displayName}</p>
-                        <div className="flex gap-1 flex-wrap">
-                          {group.members.map((m: Member) => (
-                            <span key={m.id} className={`text-[8px] font-bold px-2 py-0.5 rounded-lg ${m.paysMonthly === false ? 'bg-zinc-100 text-zinc-500' : 'bg-blue-100 text-blue-700'}`}>
-                              {m.nickname || m.name.split(' ')[0]}{m.paysMonthly === false && ' - Isento'}
-                            </span>
-                          ))}
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-5">
+              {filteredGroupedMembers.map((group, idx) => {
+                const progressPercent = Math.round((group.monthsStatus.filter((s: boolean) => s).length / viewMonth) * 100);
+                const isLate = group.atrasos > 0;
+                
+                return (
+                  <ContentCard key={idx} padding="none" className={cn(
+                    "group transition-all hover:shadow-xl overflow-hidden flex flex-col h-full border-slate-100",
+                    isLate && "border-rose-100 shadow-rose-100/10"
+                  )}>
+                    <div className={cn(
+                      "p-5 flex flex-col gap-4 flex-1",
+                      isLate ? "bg-rose-50/10" : "bg-white"
+                    )}>
+                      <div className="flex items-start justify-between">
+                        <div className={cn(
+                          "w-12 h-12 rounded-2xl flex items-center justify-center transition-all shadow-inner border",
+                          isLate ? "bg-rose-100 text-rose-600 border-rose-200" : "bg-slate-50 text-slate-400 group-hover:bg-blue-600 group-hover:text-white group-hover:border-blue-500"
+                        )}>
+                          {group.type === 'couple' ? <Heart className="w-6 h-6" /> : <Users className="w-6 h-6" />}
                         </div>
-                        <p className="text-[9px] font-black text-zinc-400 uppercase">
-                          {group.atrasos === 0 ? '✅ Em dia' : `⚠️ ${group.atrasos} meses pendentes`} •{' '}
-                          <span className="text-amber-600">R$ {group.amountPerPerson.toFixed(2)}/mês</span>
-                        </p>
+                        <div className="flex flex-col items-end gap-1">
+                           <Badge color={isLate ? 'danger' : 'success'} dot size="sm">
+                            {isLate ? `${group.atrasos} meses` : 'Em Dia'}
+                          </Badge>
+                          <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{progressPercent}% Adimplência</p>
+                        </div>
                       </div>
-                    </div>
+                      
+                      <div className="cursor-pointer" onClick={() => { setSelectedFamily(group); setShowDetailModal(true); }}>
+                        <h3 className="text-lg font-black text-slate-900 tracking-tight group-hover:text-blue-600 transition-colors leading-tight">{group.displayName}</h3>
+                        <div className="flex items-center gap-2 mt-1">
+                           <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                            {group.members.length} {group.members.length === 1 ? 'Membro' : 'Membros'} 
+                           </span>
+                           <div className="w-1 h-1 bg-slate-200 rounded-full" />
+                           <span className="text-[9px] font-black text-blue-500 uppercase tracking-widest">
+                             R$ {(group.amountPerPerson * group.payingMembers.length).toFixed(2)}/mês
+                           </span>
+                        </div>
+                      </div>
 
-                    {/* Timeline */}
-                    <div className="flex-1 overflow-x-auto">
-                      <div className="flex items-center gap-1.5 min-w-[380px]">
+                      <div className="flex -space-x-1.5 overflow-hidden">
+                        {group.members.map((m: Member) => (
+                          <div key={m.id} className="w-7 h-7 rounded-full border-2 border-white bg-slate-100 text-slate-400 flex items-center justify-center font-black text-[9px] uppercase shadow-sm" title={m.name}>
+                            {m.name[0]}
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className="grid grid-cols-12 gap-0.5 mt-auto">
                         {group.monthsStatus.map((isPaid: boolean, mIdx: number) => {
                           const isFuture = mIdx + 1 > viewMonth;
-                          let bg = 'bg-zinc-100', text = 'text-zinc-400';
-                          if (isPaid) { bg = 'bg-emerald-500'; text = 'text-white'; }
-                          else if (!isFuture) { bg = 'bg-red-500'; text = 'text-white'; }
                           return (
-                            <div key={mIdx} className="flex flex-col items-center gap-1 flex-1">
-                              <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[8px] font-black uppercase ${bg} ${text}`}>
-                                {shortMonths[mIdx]}
-                              </div>
-                              <div className={`w-1 h-1 rounded-full ${isPaid ? 'bg-emerald-400' : isFuture ? 'bg-zinc-200' : 'bg-red-400 animate-pulse'}`} />
-                            </div>
+                            <div 
+                              key={mIdx} 
+                              className={cn(
+                                "h-2.5 rounded-[3px] border transition-all",
+                                isPaid ? "bg-emerald-500 border-emerald-500" : isFuture ? "bg-slate-100 border-slate-100" : "bg-rose-500 border-rose-500 shadow-inner"
+                              )} 
+                            />
                           );
                         })}
                       </div>
                     </div>
 
-                    <Button variant="primary" size="sm" iconLeft={<Plus className="w-3.5 h-3.5" />}
-                      onClick={() => {
-                        setPaymentForm({ ...paymentForm, year: viewYear, months: [viewMonth], amountPerMonth: group.amountPerPerson, observation: '' });
-                        setSelectedForPayment({ memberIds: group.members.map((m: Member) => m.id), displayName: group.displayName, amountPerPerson: group.amountPerPerson, payingMembers: group.payingMembers });
-                        setShowPayModal(true);
-                      }}>
-                      Lançar
-                    </Button>
+                    <div className="p-3 bg-slate-50/50 border-t border-slate-100 flex items-center gap-2">
+                      <Button 
+                        variant="primary" 
+                        size="xs" 
+                        className="flex-1 text-[9px] h-8"
+                        iconLeft={<CreditCard className="w-3 h-3" />}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setPaymentForm({ ...paymentForm, year: viewYear, months: [viewMonth], amountPerMonth: group.amountPerPerson, observation: '', method: 'pix' });
+                          setSelectedForPayment({ memberIds: group.members.map((m: Member) => m.id), displayName: group.displayName, amountPerPerson: group.amountPerPerson, payingMembers: group.payingMembers });
+                          setShowPayModal(true);
+                        }}
+                      >
+                        Lançar Recebimento
+                      </Button>
+                      <IconButton 
+                        variant="ghost" 
+                        size="xs"
+                        className="w-8 h-8"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedFamily(group);
+                          setShowDetailModal(true);
+                        }}
+                      >
+                        <Eye className="w-3.5 h-3.5" />
+                      </IconButton>
+                    </div>
+                  </ContentCard>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* ── TAB MENSALIDADES ─────────────────────────────────────────────────── */}
+        {activeTab === 'mensalidades' && (
+          <div className="space-y-6">
+            <StatGrid cols={3}>
+              <StatCard title={`Arrecadado (${monthNames[viewMonth-1]})`} value={`R$ ${financeStats.monthlyTotal.toFixed(2)}`} icon={TrendingUp} color="success" />
+              <StatCard title="Pendências Acumuladas" value={`R$ ${financeStats.pendingAmount.toFixed(2)}`} icon={AlertCircle} color="danger" />
+              <StatCard title={`Total Acumulado ${viewYear}`} value={`R$ ${financeStats.yearlyTotal.toFixed(2)}`} icon={BarChart3} color="info" />
+            </StatGrid>
+
+            <ContentCard title="Controle Financeiro" className="overflow-hidden">
+               <div className="flex flex-col md:flex-row gap-5">
+                  <div className="flex-1 grid grid-cols-2 gap-3">
+                    <Select
+                      label="Ano"
+                      value={String(viewYear)}
+                      size="sm"
+                      onChange={e => setViewYear(parseInt(e.target.value))}
+                      options={[2024, 2025, 2026, 2027].map(y => ({ value: String(y), label: String(y) }))}
+                    />
+                    <Select
+                      label="Mês de Visão"
+                      value={String(viewMonth)}
+                      size="sm"
+                      onChange={e => setViewMonth(parseInt(e.target.value))}
+                      options={monthNames.map((n, i) => ({ value: String(i + 1), label: n }))}
+                    />
                   </div>
-                ))}
+                  <div className="md:w-56 p-4 bg-blue-50 rounded-2xl border border-blue-100 flex flex-col justify-center">
+                     <p className="text-[8px] font-black text-blue-400 uppercase tracking-widest mb-0.5">Expectativa Mensal</p>
+                     <p className="text-xl font-black text-blue-700 tracking-tight">
+                        R$ {(() => {
+                          const paying = membersState.filter(m => m.paysMonthly !== false);
+                          let total = 0;
+                          paying.forEach(m => {
+                            const isCouple = paying.some(o => o.id !== m.id && o.familyName === m.familyName && o.familyName && ((m.relationshipType === 'Titular' && o.relationshipType === 'Cônjuge') || (m.relationshipType === 'Cônjuge' && o.relationshipType === 'Titular')));
+                            total += isCouple ? defaultMonthlyAmount / 2 : defaultMonthlyAmount;
+                          });
+                          return total.toFixed(2);
+                        })()}
+                     </p>
+                  </div>
+               </div>
+            </ContentCard>
+
+            <ContentCard padding="none">
+              <div className="overflow-x-auto no-scrollbar">
+                <table className="w-full text-left border-separate border-spacing-0">
+                  <thead>
+                    <tr className="bg-slate-50">
+                      <th className="px-6 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 sticky left-0 bg-slate-50 z-20">Unidade Familiar</th>
+                      {shortMonths.map((m, idx) => (
+                        <th key={m} className={cn(
+                          "px-3 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 text-center",
+                          idx + 1 === viewMonth && "bg-blue-50 text-blue-600"
+                        )}>{m}</th>
+                      ))}
+                      <th className="px-6 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 text-center">Ação</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-50">
+                    {groupedMembers.map((group, idx) => (
+                      <tr key={idx} className="hover:bg-blue-50/10 transition-colors group">
+                        <td className="px-6 py-4 sticky left-0 bg-white group-hover:bg-white z-10 border-r border-slate-50">
+                           <div className="flex items-center gap-2.5">
+                              <div className={cn(
+                                "w-8 h-8 rounded-lg flex items-center justify-center shrink-0 border border-slate-100",
+                                group.atrasos > 0 ? "bg-rose-50 text-rose-500" : "bg-emerald-50 text-emerald-600"
+                              )}>
+                                 {group.type === 'couple' ? <Heart className="w-3.5 h-3.5" /> : <Users className="w-3.5 h-3.5" />}
+                              </div>
+                              <p className="text-xs font-black text-slate-800 tracking-tight truncate max-w-[140px]">{group.displayName}</p>
+                           </div>
+                        </td>
+                        {group.monthsStatus.map((isPaid: boolean, mIdx: number) => {
+                          const isFuture = mIdx + 1 > viewMonth;
+                          return (
+                            <td key={mIdx} className={cn("px-1.5 py-4 text-center", mIdx + 1 === viewMonth && "bg-blue-50/30")}>
+                               <div className={cn(
+                                 "w-5 h-5 rounded-md mx-auto flex items-center justify-center transition-all",
+                                 isPaid ? "bg-emerald-500 text-white shadow-md shadow-emerald-100" : 
+                                 isFuture ? "bg-slate-50 text-slate-200 border border-slate-100" : 
+                                 "bg-rose-500 text-white shadow-md shadow-rose-100"
+                               )}>
+                                 {isPaid ? <Check className="w-2.5 h-2.5" /> : isFuture ? null : <X className="w-2.5 h-2.5" />}
+                               </div>
+                            </td>
+                          );
+                        })}
+                        <td className="px-6 py-4 text-center">
+                          <IconButton 
+                            variant="primary" 
+                            size="xs" 
+                            className="w-7 h-7"
+                            onClick={() => {
+                              setPaymentForm({ ...paymentForm, year: viewYear, months: [viewMonth], amountPerMonth: group.amountPerPerson, observation: '', method: 'pix' });
+                              setSelectedForPayment({ memberIds: group.members.map((m: Member) => m.id), displayName: group.displayName, amountPerPerson: group.amountPerPerson, payingMembers: group.payingMembers });
+                              setShowPayModal(true);
+                            }}
+                          >
+                             <Plus className="w-3.5 h-3.5" />
+                          </IconButton>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </ContentCard>
           </div>
         )}
 
-        {/* ── ABA EVENTOS ──────────────────────────────────────────────────────── */}
+        {/* ── TAB METAS EVENTOS ────────────────────────────────────────────── */}
         {activeTab === 'eventos' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {events.map(event => {
               const teamQuota = event.teamQuotas.find(q => q.teamId === teamId);
               const teamSales = localSales.filter(s => s.eventId === event.id).reduce((acc, s) => acc + s.amount, 0);
               const progress = teamQuota ? (teamSales / teamQuota.quotaValue) * 100 : 0;
+              
               return (
-                <ContentCard key={event.id} padding="lg">
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="w-10 h-10 bg-amber-50 text-amber-600 rounded-xl flex items-center justify-center shrink-0">
-                      <Ticket className="w-5 h-5" />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-sm font-black text-zinc-900 truncate">{event.name}</p>
-                      <p className="text-[10px] text-zinc-400 font-black uppercase tracking-widest">Meta da nossa equipe</p>
-                    </div>
+                <ContentCard key={event.id} padding="none" className="overflow-hidden">
+                  <div className="p-6 bg-slate-900 text-white flex items-center justify-between">
+                     <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-amber-500 rounded-xl flex items-center justify-center shadow-lg shadow-amber-500/20">
+                           <Ticket className="w-5 h-5 text-white" />
+                        </div>
+                        <div>
+                           <h4 className="text-base font-black tracking-tight">{event.name}</h4>
+                           <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-0.5">Meta Coletiva</p>
+                        </div>
+                     </div>
+                     <Badge color="warning" size="sm">Ativa</Badge>
                   </div>
-                  <div className="grid grid-cols-2 gap-3 mb-4">
-                    <div className="p-3 bg-zinc-50 rounded-xl border border-zinc-100">
-                      <p className="text-[9px] font-black text-zinc-400 uppercase mb-1">Cota Equipe</p>
-                      <p className="text-base font-black text-zinc-900">R$ {teamQuota?.quotaValue.toFixed(2) || '0.00'}</p>
-                    </div>
-                    <div className="p-3 bg-amber-50 rounded-xl border border-amber-100">
-                      <p className="text-[9px] font-black text-amber-400 uppercase mb-1">Já Vendido</p>
-                      <p className="text-base font-black text-amber-700">R$ {teamSales.toFixed(2)}</p>
-                    </div>
-                  </div>
-                  <div className="space-y-1.5">
-                    <div className="flex justify-between text-[10px] font-black uppercase tracking-widest">
-                      <span className="text-zinc-400">Progresso da Meta</span>
-                      <span className="text-amber-600">{progress.toFixed(1)}%</span>
-                    </div>
-                    <div className="h-2.5 w-full bg-zinc-100 rounded-full overflow-hidden">
-                      <div className="h-full bg-amber-500 rounded-full transition-all duration-700" style={{ width: `${Math.min(progress, 100)}%` }} />
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 pt-4 border-t border-zinc-100 mt-4">
-                    <Users className="w-3.5 h-3.5 text-zinc-300" />
-                    <span className="text-[9px] font-black text-zinc-400 uppercase">{localSales.filter(s => s.eventId === event.id).length} Vendas Realizadas</span>
+                  <div className="p-6 space-y-5">
+                     <div className="grid grid-cols-2 gap-3">
+                        <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                           <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Cota Equipe</p>
+                           <p className="text-xl font-black text-slate-900">R$ {teamQuota?.quotaValue.toFixed(2) || '0.00'}</p>
+                        </div>
+                        <div className="bg-emerald-50 p-3 rounded-xl border border-emerald-100">
+                           <p className="text-[9px] font-black text-emerald-400 uppercase tracking-widest mb-0.5">Realizado</p>
+                           <p className="text-xl font-black text-emerald-600">R$ {teamSales.toFixed(2)}</p>
+                        </div>
+                     </div>
+                     <div className="space-y-1.5">
+                        <div className="flex justify-between text-[9px] font-black uppercase text-slate-400">
+                          <span>Progresso da Campanha</span>
+                          <span className="text-blue-600">{progress.toFixed(1)}%</span>
+                        </div>
+                        <div className="h-2.5 w-full bg-slate-100 rounded-full overflow-hidden">
+                          <div className="h-full bg-blue-600 rounded-full transition-all duration-1000" style={{ width: `${Math.min(progress, 100)}%` }} />
+                        </div>
+                     </div>
                   </div>
                 </ContentCard>
               );
@@ -878,234 +673,466 @@ const MyTeamView: React.FC<MyTeamViewProps> = ({ teamId, userId, userRole }) => 
           </div>
         )}
 
-        {/* ── ABA HISTÓRICO ────────────────────────────────────────────────────── */}
+        {/* ── TAB HISTÓRICO ─────────────────────────────────────────────────── */}
         {activeTab === 'historico' && (
           <ContentCard padding="none">
-            <div className="p-5 border-b border-zinc-100 bg-zinc-50/20">
-              <p className="text-sm font-black text-zinc-900">Extrato Detalhado</p>
-              <p className="text-[10px] text-zinc-400 font-black uppercase tracking-widest mt-0.5">Últimos 20 lançamentos da equipe</p>
+            <div className="p-6 border-b border-slate-50">
+                <h3 className="text-lg font-black text-slate-900 tracking-tight">Extrato Recente</h3>
+                <p className="text-[9px] text-slate-400 font-black uppercase tracking-widest mt-0.5 italic">Últimos lançamentos realizados.</p>
             </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-left">
-                <thead>
-                  <tr className="bg-zinc-50/50">
-                    <th className="px-5 py-4 text-[10px] font-black text-zinc-400 uppercase tracking-widest">MFCista / Família</th>
-                    <th className="px-5 py-4 text-[10px] font-black text-zinc-400 uppercase tracking-widest">Referência</th>
-                    <th className="px-5 py-4 text-[10px] font-black text-zinc-400 uppercase tracking-widest">Data Lanç.</th>
-                    <th className="px-5 py-4 text-[10px] font-black text-zinc-400 uppercase tracking-widest">Valor</th>
-                    <th className="px-5 py-4 text-[10px] font-black text-zinc-400 uppercase tracking-widest text-center">Status</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-zinc-50">
-                  {localPayments.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 20).map(p => {
-                    const member = membersState.find(m => m.id === p.memberId);
-                    return (
-                      <tr key={p.id} className="hover:bg-zinc-50/50 transition-colors">
-                        <td className="px-5 py-3.5">
-                          <div className="flex items-center gap-2.5">
-                            <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center text-[10px] font-black">{member?.name[0]}</div>
-                            <div>
-                              <span className="text-sm font-bold text-zinc-800 block">{member?.name}</span>
-                              {p.familyName && <span className="text-[9px] font-black text-violet-600 uppercase">Família {p.familyName}</span>}
+            <div className="overflow-x-auto no-scrollbar">
+               <table className="w-full text-left border-separate border-spacing-0">
+                  <thead>
+                    <tr className="bg-slate-50">
+                      <th className="px-8 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 whitespace-nowrap sticky left-0 bg-slate-50 z-20">MFCista</th>
+                      <th className="px-4 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 whitespace-nowrap">Referência</th>
+                      <th className="px-4 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 whitespace-nowrap">Data</th>
+                      <th className="px-4 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 whitespace-nowrap">Valor</th>
+                      <th className="px-8 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 text-center whitespace-nowrap">Forma</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-50">
+                    {localPayments.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 30).map(p => {
+                      const member = membersState.find(m => m.id === p.memberId);
+                      return (
+                        <tr key={p.id} className="hover:bg-slate-50/50 transition-colors group">
+                          <td className="px-8 py-3 sticky left-0 bg-white group-hover:bg-white z-10 border-r border-slate-50">
+                            <div className="flex items-center gap-2.5">
+                              <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-400 flex items-center justify-center font-black text-xs shrink-0 uppercase">
+                                {member?.name[0] || '?'}
+                              </div>
+                              <div>
+                                <p className="text-xs font-black text-slate-800 tracking-tight whitespace-nowrap">{member?.name || 'Membro'}</p>
+                                <p className="text-[8px] font-black text-slate-400 uppercase whitespace-nowrap">{p.familyName || '-'}</p>
+                              </div>
                             </div>
-                          </div>
-                        </td>
-                        <td className="px-5 py-3.5 text-sm font-black text-zinc-500">{p.referenceMonth}</td>
-                        <td className="px-5 py-3.5 text-sm text-zinc-400">{new Date(p.date).toLocaleDateString('pt-BR')}</td>
-                        <td className="px-5 py-3.5 text-sm font-black text-zinc-900">R$ {p.amount.toFixed(2)}</td>
-                        <td className="px-5 py-3.5 text-center">
-                          <span className="px-2.5 py-1 bg-emerald-100 text-emerald-700 text-[9px] font-black uppercase rounded-lg">Confirmado</span>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap"><Badge color="default" size="sm">{p.referenceMonth}</Badge></td>
+                          <td className="px-4 py-3 text-[10px] font-bold text-slate-400 whitespace-nowrap">{new Date(p.date).toLocaleDateString('pt-BR')}</td>
+                          <td className="px-4 py-3 text-xs font-black text-slate-900 whitespace-nowrap">R$ {p.amount.toFixed(2)}</td>
+                          <td className="px-8 py-3 text-center">
+                             <Badge color="info" dot size="sm">{p.method || 'Pix'}</Badge>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+               </table>
             </div>
           </ContentCard>
         )}
 
+        {/* ── TAB MEMBROS ─────────────────────────────────────────────────── */}
+        {activeTab === 'membros' && (
+          <div className="space-y-4">
+            <FilterLine>
+               <FilterLineSection grow>
+                  <FilterLineItem grow>
+                     <FilterLineSearch 
+                        value={memberSearch}
+                        onChange={setMemberSearch}
+                        placeholder="Pesquisar MFCistas..."
+                     />
+                  </FilterLineItem>
+                  <FilterLineItem minWidth={280}>
+                     <FilterLineSegmented 
+                        value={memberStatusFilter}
+                        onChange={(val) => setMemberStatusFilter(val as string)}
+                        options={[
+                           { value: 'all', label: 'Todos', icon: <Users className="w-3.5 h-3.5" /> },
+                           { value: 'Ativo', label: 'Ativos', icon: <UserCheck className="w-3.5 h-3.5" /> },
+                           { value: 'Inativo', label: 'Inativos', icon: <Zap className="w-3.5 h-3.5" /> }
+                        ]}
+                     />
+                  </FilterLineItem>
+               </FilterLineSection>
+            </FilterLine>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 pt-2">
+              {filteredTeamMembers.map(m => (
+                <ContentCard key={m.id} padding="none" className="cursor-pointer group hover:shadow-lg hover:-translate-y-1 transition-all" onClick={() => navigate(`/mfcistas/${m.id}`)}>
+                  <div className="p-4 flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-black text-lg group-hover:bg-blue-600 group-hover:text-white transition-all shadow-inner shrink-0 border border-blue-100">
+                      {m.name[0]}
+                    </div>
+                    <div className="min-w-0">
+                       <h4 className="text-xs font-black text-slate-900 tracking-tight truncate">{m.name}</h4>
+                       <p className="text-[9px] text-slate-400 font-black uppercase tracking-widest mt-0.5 truncate">{m.nickname || 'MFCista'}</p>
+                    </div>
+                  </div>
+                  <div className="px-4 py-2 bg-slate-50/50 border-t border-slate-50 flex items-center justify-between">
+                    <Badge color={m.status === 'Ativo' ? 'success' : 'warning'} size="sm">{m.status}</Badge>
+                    <ArrowRight className="w-3 h-3 text-slate-300 group-hover:text-blue-500 group-hover:translate-x-0.5 transition-all" />
+                  </div>
+                </ContentCard>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* ── Modal Pagamento ──────────────────────────────────────────────────── */}
+      {/* ── MODALS ──────────────────────────────────────────────────────────── */}
+
+      {/* MODAL DETALHES FAMÍLIA (DRAWER) */}
+      <Modal
+        isOpen={showDetailModal && !!selectedFamily}
+        onClose={() => setShowDetailModal(false)}
+        title={selectedFamily?.displayName}
+        size="lg"
+        position="right"
+      >
+        {selectedFamily && (
+          <div className="space-y-6 animate-in slide-in-from-right-4 duration-500">
+            {/* Family Header */}
+            <div className="bg-gradient-to-br from-blue-600 to-indigo-700 p-6 rounded-3xl text-white shadow-xl shadow-blue-100 relative overflow-hidden">
+               <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16 blur-2xl" />
+               <div className="flex flex-col gap-4 relative">
+                  <div className="flex items-center gap-4">
+                     <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center border border-white/30 backdrop-blur-sm shrink-0">
+                        {selectedFamily.type === 'couple' ? <Heart className="w-8 h-8" /> : <Users className="w-8 h-8" />}
+                     </div>
+                     <div>
+                        <h3 className="text-xl font-black tracking-tight leading-tight">{selectedFamily.displayName}</h3>
+                        <div className="flex flex-wrap items-center gap-2 mt-1 opacity-80">
+                           <p className="text-[9px] font-black uppercase tracking-wider flex items-center gap-1.5">
+                             <Home className="w-3 h-3" /> Família {selectedFamily.familyName}
+                           </p>
+                           <div className="w-0.5 h-0.5 bg-white/30 rounded-full" />
+                           <p className="text-[9px] font-black uppercase tracking-wider">Desde {selectedFamily.titular.mfcDate?.split('-')[0] || '?'}</p>
+                        </div>
+                     </div>
+                  </div>
+                  <Divider className="border-white/10" />
+                  <div className="flex items-center justify-between">
+                     <p className="text-[9px] font-black text-blue-200 uppercase tracking-widest">Mensalidade Total</p>
+                     <p className="text-2xl font-black">R$ {(selectedFamily.amountPerPerson * selectedFamily.payingMembers.length).toFixed(2)}</p>
+                  </div>
+               </div>
+            </div>
+
+            {/* Address & Contact */}
+            <div className="p-5 rounded-3xl bg-slate-50 border border-slate-100">
+               <div className="flex items-center gap-2.5 mb-4">
+                  <div className="w-9 h-9 bg-white rounded-xl flex items-center justify-center text-blue-600 shadow-sm border border-slate-100">
+                     <MapPin className="w-4 h-4" />
+                  </div>
+                  <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Localização e Contato</h4>
+               </div>
+               <div className="space-y-4">
+                  <div className="bg-white p-4 rounded-2xl border border-slate-100">
+                     <p className="text-[9px] font-black text-slate-400 uppercase mb-1.5 flex items-center gap-1.5"><Home className="w-3 h-3" /> Endereço</p>
+                     <p className="text-xs font-black text-slate-700 leading-relaxed">
+                        {selectedFamily.titular.street}, {selectedFamily.titular.number} • {selectedFamily.titular.neighborhood}<br />
+                        {selectedFamily.titular.city}-{selectedFamily.titular.state}
+                     </p>
+                  </div>
+                  <div className="grid grid-cols-1 gap-2">
+                     <div className="flex items-center justify-between p-3 bg-white rounded-2xl border border-slate-100">
+                        <div className="flex items-center gap-3">
+                           <PhoneCall className="w-4 h-4 text-emerald-500" />
+                           <div>
+                              <p className="text-[8px] font-black text-slate-400 uppercase mb-0.5">Titular</p>
+                              <p className="text-xs font-black text-slate-800 tracking-tight">{selectedFamily.titular.phone || 'N/I'}</p>
+                           </div>
+                        </div>
+                        <IconButton variant="ghost" size="sm" className="w-8 h-8" onClick={() => window.open(`tel:${selectedFamily.titular.phone}`, '_blank')}><ExternalLink className="w-3.5 h-3.5" /></IconButton>
+                     </div>
+                     {selectedFamily.spouse && (
+                        <div className="flex items-center justify-between p-3 bg-white rounded-2xl border border-slate-100">
+                           <div className="flex items-center gap-3">
+                              <PhoneCall className="w-4 h-4 text-emerald-500" />
+                              <div>
+                                 <p className="text-[8px] font-black text-slate-400 uppercase mb-0.5">Cônjuge</p>
+                                 <p className="text-xs font-black text-slate-800 tracking-tight">{selectedFamily.spouse.phone || 'N/I'}</p>
+                              </div>
+                           </div>
+                           <IconButton variant="ghost" size="sm" className="w-8 h-8" onClick={() => window.open(`tel:${selectedFamily.spouse.phone}`, '_blank')}><ExternalLink className="w-3.5 h-3.5" /></IconButton>
+                        </div>
+                     )}
+                  </div>
+               </div>
+            </div>
+
+            {/* Members List */}
+            <div className="space-y-3">
+               <div className="flex items-center justify-between px-1">
+                  <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Composição Familiar</h4>
+                  <IconButton variant="ghost" size="xs" className="w-7 h-7" onClick={() => {
+                     const rel: any = {}; selectedFamily.members.forEach((m: Member) => { rel[m.id] = m.relationshipType || 'Outro'; });
+                     setEditingFamily({ name: selectedFamily.familyName || '', memberIds: selectedFamily.members.map((m: Member) => m.id), relationships: rel });
+                     setShowFamilyModal(true);
+                  }}><Edit className="w-3.5 h-3.5" /></IconButton>
+               </div>
+               
+               <div className="space-y-2">
+                  {selectedFamily.members.map((m: Member) => {
+                     const age = getMemberAge(m.dob);
+                     return (
+                        <div key={m.id} className="p-3 rounded-2xl bg-white border border-slate-100 flex items-center gap-3 hover:border-blue-300 transition-all group">
+                           <div className="w-10 h-10 rounded-xl bg-slate-50 text-slate-400 flex items-center justify-center font-black text-lg group-hover:bg-blue-600 group-hover:text-white transition-all shrink-0">
+                              {m.name[0]}
+                           </div>
+                           <div className="flex-1 min-w-0">
+                              <div className="flex items-center justify-between">
+                                 <p className="text-xs font-black text-slate-800 truncate">{m.name}</p>
+                                 <IconButton variant="ghost" size="xs" className="w-6 h-6" onClick={() => navigate(`/mfcistas/${m.id}`)}><ArrowRight className="w-3 h-3" /></IconButton>
+                              </div>
+                              <div className="flex flex-wrap gap-1.5 mt-1">
+                                 <Badge color="info" size="sm" className="text-[8px] px-1.5">{m.relationshipType || 'Titular'}</Badge>
+                                 {age !== null && <Badge color="default" size="sm" className="text-[8px] px-1.5" icon={<Cake className="w-2.5 h-2.5" />}>{age} anos</Badge>}
+                              </div>
+                           </div>
+                        </div>
+                     );
+                  })}
+               </div>
+            </div>
+
+            {/* Children Tag Section */}
+            {selectedFamily.children.length > 0 && (
+              <div className="p-5 rounded-3xl bg-amber-50/50 border border-amber-100">
+                 <p className="text-[9px] font-black text-amber-500 uppercase tracking-widest mb-3 flex items-center gap-2"><Baby className="w-3.5 h-3.5" /> Filhos no MFC</p>
+                 <div className="flex flex-wrap gap-2">
+                    {selectedFamily.children.map((child: Member) => (
+                       <div key={child.id} className="px-3 py-1.5 bg-white rounded-xl border border-amber-100 text-[10px] font-black text-slate-700 flex items-center gap-2">
+                          <div className="w-5 h-5 rounded-md bg-amber-100 text-amber-600 flex items-center justify-center text-[8px]">{child.name[0]}</div>
+                          {child.name}
+                       </div>
+                    ))}
+                 </div>
+              </div>
+            )}
+          </div>
+        )}
+        <ModalFooter align="between" className="border-t border-slate-100 mt-6 bg-white sticky bottom-0 -mx-5 -mb-5 p-5">
+          <Button variant="ghost" size="sm" onClick={() => setShowDetailModal(false)}>Fechar</Button>
+          <Button variant="primary" size="sm" className="px-6" iconLeft={<CreditCard className="w-4 h-4" />} onClick={() => {
+             setPaymentForm({ ...paymentForm, year: viewYear, months: [viewMonth], amountPerMonth: selectedFamily.amountPerPerson, observation: '', method: 'pix' });
+             setSelectedForPayment({ memberIds: selectedFamily.members.map((m: Member) => m.id), displayName: selectedFamily.displayName, amountPerPerson: selectedFamily.amountPerPerson, payingMembers: selectedFamily.payingMembers });
+             setShowPayModal(true);
+          }}>Lançar Mensalidade</Button>
+        </ModalFooter>
+      </Modal>
+
+      {/* MODAL PAGAMENTO */}
       <Modal
         isOpen={showPayModal && !!selectedForPayment}
         onClose={() => setShowPayModal(false)}
         title="Confirmar Recebimento"
         size="md"
-        footer={
-          <ModalFooter>
-            <Button variant="ghost" size="sm" onClick={() => setShowPayModal(false)}>Cancelar</Button>
-            <Button variant="success" size="sm" disabled={paymentForm.months.length === 0} iconLeft={<Save className="w-4 h-4" />} onClick={handleLaunchMultiPayment}>
-              Confirmar ({paymentForm.months.length} {paymentForm.months.length === 1 ? 'Mês' : 'Meses'})
-            </Button>
-          </ModalFooter>
-        }
       >
         {selectedForPayment && (
-          <div className="space-y-4">
-            <div className="bg-gradient-to-br from-blue-50 to-violet-50 p-4 rounded-xl border border-blue-100 space-y-3">
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest mb-1">Unidade Familiar</p>
-                  <p className="text-base font-black text-zinc-800">{selectedForPayment.displayName}</p>
-                  <div className="flex gap-1.5 flex-wrap mt-2">
-                    {selectedForPayment.payingMembers.map((m: Member) => (
-                      <span key={m.id} className="text-[8px] font-bold px-2 py-1 rounded-lg bg-blue-500 text-white">
-                        {m.nickname || m.name.split(' ')[0]}{m.relationshipType && ` (${m.relationshipType})`}
-                      </span>
-                    ))}
+          <div className="space-y-5">
+            <div className="p-5 rounded-3xl bg-gradient-to-br from-blue-600 to-indigo-700 text-white shadow-xl shadow-blue-100 relative overflow-hidden">
+               <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16 blur-2xl" />
+               <div className="flex items-start justify-between relative">
+                  <div>
+                    <p className="text-[9px] font-black text-blue-200 uppercase tracking-widest mb-0.5">Unidade Familiar</p>
+                    <h4 className="text-lg font-black tracking-tight leading-tight">{selectedForPayment.displayName}</h4>
+                    <div className="flex gap-1 flex-wrap mt-2.5">
+                      {selectedForPayment.payingMembers.map((m: Member) => (
+                        <span key={m.id} className="text-[8px] font-black px-2 py-0.5 rounded-lg bg-white/10 border border-white/20 uppercase">
+                          {m.nickname || m.name.split(' ')[0]}
+                        </span>
+                      ))}
+                    </div>
                   </div>
-                </div>
-                <div className="text-right">
-                  <p className="text-[9px] font-black text-zinc-400 uppercase mb-1">Por Pessoa</p>
-                  <p className="text-lg font-black text-blue-600">R$ {selectedForPayment.amountPerPerson.toFixed(2)}</p>
-                </div>
-              </div>
-              <div className="bg-white rounded-lg p-3 text-center">
-                <p className="text-[9px] font-black text-zinc-400 uppercase mb-1">Total a Lançar</p>
-                <p className="text-2xl font-black text-emerald-600">
-                  R$ {(paymentForm.months.length * selectedForPayment.amountPerPerson * selectedForPayment.payingMembers.length).toFixed(2)}
-                </p>
-                <p className="text-[9px] font-semibold text-zinc-400 mt-1">
-                  {paymentForm.months.length} {paymentForm.months.length === 1 ? 'mês' : 'meses'} × {selectedForPayment.payingMembers.length} {selectedForPayment.payingMembers.length === 1 ? 'pessoa' : 'pessoas'}
-                </p>
-              </div>
+                  <div className="text-right">
+                    <p className="text-[9px] font-black text-blue-200 uppercase tracking-widest mb-0.5">Por Pessoa</p>
+                    <p className="text-xl font-black text-white">R$ {selectedForPayment.amountPerPerson.toFixed(2)}</p>
+                  </div>
+               </div>
             </div>
 
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest">Selecione os Meses</p>
-                <Select
-                  value={String(paymentForm.year)}
-                  onChange={e => setPaymentForm({ ...paymentForm, year: parseInt(e.target.value) })}
-                  options={[2024, 2025, 2026, 2027].map(y => ({ value: String(y), label: String(y) }))}
-                />
+            <div className="p-5 bg-slate-50 rounded-3xl border border-slate-100 flex items-center justify-between">
+               <div>
+                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Valor Total</p>
+                  <p className="text-2xl font-black text-slate-900 tracking-tight">
+                    R$ {(paymentForm.months.length * selectedForPayment.amountPerPerson * selectedForPayment.payingMembers.length).toFixed(2)}
+                  </p>
+               </div>
+               <Badge color="success" size="md" pill>
+                 {paymentForm.months.length} {paymentForm.months.length === 1 ? 'Mês' : 'Meses'}
+               </Badge>
+            </div>
+
+            <div className="space-y-3.5">
+              <div className="flex items-center justify-between px-1">
+                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Referência</p>
+                <div className="flex items-center gap-2">
+                  <Select
+                    value={String(paymentForm.year)}
+                    onChange={e => setPaymentForm({ ...paymentForm, year: parseInt(e.target.value) })}
+                    options={[2024, 2025, 2026, 2027].map(y => ({ value: String(y), label: String(y) }))}
+                    size="sm"
+                    wrapperClassName="w-24"
+                  />
+                </div>
               </div>
-              <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
+              <div className="grid grid-cols-4 gap-1.5">
                 {monthNames.map((_m, i) => {
                   const mIdx = i + 1;
                   const isSelected = paymentForm.months.includes(mIdx);
                   const isPaid = selectedForPayment.memberIds.some(id => localPayments.some(p => p.memberId === id && p.referenceMonth === `${mIdx}/${paymentForm.year}`));
                   return (
-                    <button key={mIdx} disabled={isPaid} onClick={() => toggleMonthInForm(mIdx)}
-                      className={`relative p-2.5 rounded-lg border transition-all flex flex-col items-center gap-0.5 text-[8px] font-black uppercase ${
-                        isPaid ? 'bg-emerald-50 border-emerald-100 cursor-not-allowed' :
-                        isSelected ? 'bg-amber-500 border-amber-500 text-white shadow-md' :
-                        'bg-zinc-50 border-zinc-100 text-zinc-500 hover:bg-white hover:border-amber-200'
-                      }`}>
+                    <button 
+                      key={mIdx} 
+                      disabled={isPaid} 
+                      onClick={() => toggleMonthInForm(mIdx)}
+                      className={cn(
+                        "h-11 rounded-xl border transition-all flex flex-col items-center justify-center gap-0.5 text-[8px] font-black uppercase tracking-widest",
+                        isPaid ? "bg-emerald-50 border-emerald-100 text-emerald-600 cursor-not-allowed opacity-60" :
+                        isSelected ? "bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-100" :
+                        "bg-white border-slate-100 text-slate-400 hover:border-blue-300"
+                      )}
+                    >
                       {shortMonths[i]}
-                      {isPaid ? <CheckCircle2 className="w-3 h-3 text-emerald-500" /> : isSelected ? <Check className="w-3 h-3" /> : <div className="w-3 h-3 rounded-full border-2 border-zinc-200" />}
-                      {isPaid && <span className="absolute -top-1.5 -right-1.5 bg-emerald-500 text-white text-[6px] font-black px-1 py-0.5 rounded-full">PAGO</span>}
+                      {isPaid ? <CheckCircle2 className="w-3 h-3" /> : isSelected ? <Check className="w-3 h-3" /> : null}
                     </button>
                   );
                 })}
               </div>
             </div>
 
-            <div>
-              <label className="text-[9px] font-black text-zinc-400 uppercase tracking-widest block mb-1">Observações (Opcional)</label>
-              <textarea rows={2} placeholder="PIX ou dinheiro..."
-                className="ds-input w-full resize-none text-xs"
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+               <Select 
+                label="Forma"
+                value={paymentForm.method}
+                size="sm"
+                onChange={e => setPaymentForm({ ...paymentForm, method: e.target.value })}
+                options={[
+                  { value: 'pix', label: 'Pix' },
+                  { value: 'cash', label: 'Dinheiro' },
+                  { value: 'card', label: 'Cartão' },
+                  { value: 'transfer', label: 'Transf.' }
+                ]}
+              />
+               <Input 
+                label="Obs."
+                placeholder="Opcional..."
+                size="sm"
                 value={paymentForm.observation}
-                onChange={e => setPaymentForm({ ...paymentForm, observation: e.target.value })}
+                onChange={e => setPaymentForm({...paymentForm, observation: e.target.value})}
               />
             </div>
           </div>
         )}
+        <ModalFooter>
+          <Button variant="ghost" size="sm" onClick={() => setShowPayModal(false)}>Cancelar</Button>
+          <Button 
+            variant="primary" 
+            size="sm"
+            disabled={paymentForm.months.length === 0} 
+            iconLeft={<Save className="w-4 h-4" />} 
+            onClick={handleLaunchMultiPayment}
+          >
+            Confirmar Recebimento
+          </Button>
+        </ModalFooter>
       </Modal>
 
-      {/* ── Modal Família ────────────────────────────────────────────────────── */}
+      {/* MODAL GESTÃO FAMÍLIA */}
       <Modal
         isOpen={showFamilyModal}
         onClose={() => { setShowFamilyModal(false); setEditingFamily(null); }}
-        title="Criar Nova Família"
-        size="xl"
-        footer={
-          <ModalFooter>
-            <Button variant="ghost" size="sm" onClick={() => { setShowFamilyModal(false); setEditingFamily(null); }}>Cancelar</Button>
-            <Button variant="primary" size="sm" disabled={!editingFamily?.name || (editingFamily?.memberIds.length || 0) === 0} iconLeft={<Save className="w-4 h-4" />} onClick={handleSaveFamily}>
-              Criar Família
-            </Button>
-          </ModalFooter>
-        }
+        title="Configurar Unidade Familiar"
+        size="lg"
       >
-        <div className="space-y-5">
+        <div className="space-y-6">
           <Input
             label="Nome da Família *"
-            placeholder="Ex: Silva, Santos, Oliveira..."
+            placeholder="Ex: Família Silva"
+            size="sm"
             value={editingFamily?.name || ''}
             onChange={e => setEditingFamily(prev => prev ? { ...prev, name: e.target.value } : { name: e.target.value, memberIds: [], relationships: {} })}
+            iconLeft={<Heart className="w-4 h-4 text-rose-400" />}
           />
 
-          <div>
-            <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-3">
-              Membros da Família * ({editingFamily?.memberIds.length || 0} selecionados)
-            </p>
+          <div className="space-y-4">
+             <div className="flex items-center justify-between px-1">
+                <h4 className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Adicionar Membros</h4>
+                <Badge color="info" size="sm">{editingFamily?.memberIds.length || 0} Selecionados</Badge>
+             </div>
+             
+             <Combobox 
+                multiple
+                placeholder="Pesquisar e adicionar MFCistas..."
+                searchPlaceholder="Digite o nome..."
+                options={membersState.map(m => ({
+                  value: m.id,
+                  label: m.name,
+                  subtitle: m.familyName ? `Família: ${m.familyName}` : 'Sem Família',
+                  badge: m.status,
+                  badgeColor: m.status === 'Ativo' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-zinc-50 text-zinc-500 border-zinc-200'
+                }))}
+                value={editingFamily?.memberIds || []}
+                onChange={(ids) => {
+                  const newIds = ids as string[];
+                  setEditingFamily(prev => {
+                    if (!prev) return null;
+                    const newRel = { ...prev.relationships };
+                    newIds.forEach((id, idx) => {
+                      if (!newRel[id]) newRel[id] = newIds.length === 1 ? 'Titular' : 'Outro';
+                    });
+                    return { ...prev, memberIds: newIds, relationships: newRel };
+                  });
+                }}
+             />
 
-            {availableMembers.length === 0 ? (
-              <div className="bg-amber-50 border-2 border-amber-200 rounded-xl p-5 text-center">
-                <AlertCircle className="w-10 h-10 text-amber-500 mx-auto mb-2" />
-                <p className="text-sm font-bold text-amber-800">Todos os membros já estão em famílias</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-64 overflow-y-auto p-1">
-                  {availableMembers.map(m => {
-                    const isSelected = editingFamily?.memberIds.includes(m.id);
-                    return (
-                      <div key={m.id} onClick={() => setEditingFamily(prev => {
-                        if (!prev) return { name: '', memberIds: [m.id], relationships: { [m.id]: 'Titular' } };
-                        const newIds = isSelected ? prev.memberIds.filter(id => id !== m.id) : [...prev.memberIds, m.id];
-                        const newRel = { ...prev.relationships };
-                        if (isSelected) { delete newRel[m.id]; } else { newRel[m.id] = newIds.length === 1 ? 'Titular' : 'Outro'; }
-                        return { ...prev, memberIds: newIds, relationships: newRel };
-                      })}
-                        className={`p-3 rounded-xl border-2 cursor-pointer transition-all flex items-center gap-3 ${isSelected ? 'bg-violet-50 border-violet-400 shadow-md' : 'bg-white border-zinc-200 hover:border-violet-200'}`}>
-                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-base transition-all ${isSelected ? 'bg-violet-500 text-white' : 'bg-zinc-100 text-zinc-600'}`}>
-                          {isSelected ? <Check className="w-5 h-5" /> : m.name[0]}
-                        </div>
-                        <div>
-                          <p className="text-sm font-bold text-zinc-900">{m.name}</p>
-                          <p className="text-[10px] text-zinc-400">{m.maritalStatus} • {m.gender}</p>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {(editingFamily?.memberIds.length || 0) > 0 && (
-                  <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-4">
-                    <p className="text-xs font-black text-blue-900 mb-3 flex items-center gap-2"><Users className="w-4 h-4" /> Definir Vínculos Familiares</p>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                      {editingFamily!.memberIds.map(memberId => {
-                        const m = membersState.find(x => x.id === memberId);
-                        if (!m) return null;
-                        return (
-                          <div key={memberId} className="bg-white rounded-xl p-3 border border-blue-100">
-                            <p className="text-xs font-bold text-zinc-600 mb-2">{m.name.split(' ')[0]}</p>
-                            <Select
-                              value={editingFamily!.relationships[memberId] || 'Outro'}
-                              onChange={e => setEditingFamily(prev => prev ? { ...prev, relationships: { ...prev.relationships, [memberId]: e.target.value } } : prev)}
-                              options={['Titular','Cônjuge','Filho(a)','Irmão/Irmã','Neto(a)','Amigo(a)','Primo(a)','Tio/Tia','Sobrinho(a)','Avô/Avó','Sogro(a)','Outro'].map(v => ({ value: v, label: v }))}
+             <div className="space-y-2 mt-4">
+                {editingFamily?.memberIds.map(id => {
+                   const m = membersState.find(x => x.id === id);
+                   if (!m) return null;
+                   return (
+                      <div key={id} className="p-3 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-between gap-4">
+                         <div className="flex items-center gap-3 min-w-0">
+                            <div className="w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center font-black text-xs shrink-0">{m.name[0]}</div>
+                            <div className="min-w-0">
+                               <p className="text-[11px] font-black text-slate-800 truncate">{m.name}</p>
+                               <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest truncate">{m.nickname || 'MFCista'}</p>
+                            </div>
+                         </div>
+                         <div className="flex items-center gap-2 shrink-0">
+                            <Select 
+                               value={editingFamily.relationships[id] || 'Outro'}
+                               size="sm"
+                               className="w-32"
+                               onChange={e => setEditingFamily({ ...editingFamily, relationships: { ...editingFamily.relationships, [id]: e.target.value } })}
+                               options={['Titular','Cônjuge','Filho(a)','Pai/Mãe','Irmão/Irmã','Neto(a)','Sogro(a)','Outro'].map(v => ({ value: v, label: v }))}
                             />
-                          </div>
-                        );
-                      })}
-                    </div>
+                            <IconButton variant="ghost" size="xs" className="w-7 h-7" onClick={() => setEditingFamily(prev => {
+                               if (!prev) return null;
+                               const newIds = prev.memberIds.filter(mid => mid !== id);
+                               const newRel = { ...prev.relationships }; delete newRel[id];
+                               return { ...prev, memberIds: newIds, relationships: newRel };
+                            })}><X className="w-3.5 h-3.5 text-rose-400" /></IconButton>
+                         </div>
+                      </div>
+                   );
+                })}
+                {(editingFamily?.memberIds.length || 0) === 0 && (
+                  <div className="p-10 rounded-3xl bg-slate-50/50 border-2 border-dashed border-slate-200 text-center">
+                     <Users className="w-8 h-8 text-slate-200 mx-auto mb-2" />
+                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Nenhum membro selecionado</p>
                   </div>
                 )}
-              </div>
-            )}
-          </div>
-
-          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
-            <p className="text-xs text-amber-800 font-semibold">
-              <strong>Dica:</strong> Selecione os membros e defina o vínculo de cada um (Titular, Cônjuge, Filho(a), etc).
-            </p>
+             </div>
           </div>
         </div>
+        <ModalFooter>
+          <Button variant="ghost" size="sm" onClick={() => { setShowFamilyModal(false); setEditingFamily(null); }}>Cancelar</Button>
+          <Button 
+            variant="primary" 
+            size="sm"
+            disabled={!editingFamily?.name || (editingFamily?.memberIds.length || 0) === 0} 
+            iconLeft={<Save className="w-4 h-4" />} 
+            onClick={handleSaveFamily}
+          >
+            Salvar Família
+          </Button>
+        </ModalFooter>
       </Modal>
+
     </PageWrapper>
   );
 };

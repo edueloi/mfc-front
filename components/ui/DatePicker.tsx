@@ -140,19 +140,44 @@ export const DatePicker: React.FC<DatePickerProps> = ({
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    let v = e.target.value.replace(/\D/g, '');
-    if (v.length > 8) v = v.substring(0, 8);
-    if (v.length > 4) v = `${v.substring(0, 2)}/${v.substring(2, 4)}/${v.substring(4)}`;
-    else if (v.length > 2) v = `${v.substring(0, 2)}/${v.substring(2)}`;
-    setInputValue(v);
-    if (v.length === 10) {
-      const [d, m, y] = v.split('/').map(Number);
+    let v = e.target.value;
+    
+    // Se for um backspace e terminar em barra, remove a barra também
+    if ((e.nativeEvent as any).inputType === 'deleteContentBackward' && (v.endsWith('/') || v.length === 2 || v.length === 5)) {
+      // Deixa o comportamento natural do input agir
+    }
+
+    const digits = v.replace(/\D/g, '');
+    let formatted = '';
+    
+    if (digits.length > 0) {
+      formatted = digits.substring(0, 2);
+      if (digits.length > 2) {
+        formatted += '/' + digits.substring(2, 4);
+        if (digits.length > 4) {
+          formatted += '/' + digits.substring(4, 8);
+        }
+      }
+    }
+    
+    setInputValue(formatted);
+
+    if (digits.length === 8) {
+      const d = parseInt(digits.substring(0, 2));
+      const m = parseInt(digits.substring(2, 4));
+      const y = parseInt(digits.substring(4, 8));
       const date = new Date(y, m - 1, d);
+      
       if (!isNaN(date.getTime()) && date.getFullYear() === y && date.getMonth() === m - 1 && date.getDate() === d) {
         const iso = formatISODate(date);
-        if (!isDateDisabled(date, min, max)) { onChange(iso); setViewDate(date); }
+        if (!isDateDisabled(date, min, max)) {
+          onChange(iso);
+          setViewDate(date);
+        }
       }
-    } else if (v.length === 0) { onChange(null); }
+    } else if (digits.length === 0) {
+      onChange(null);
+    }
   };
 
   const handlePrev = () => {
